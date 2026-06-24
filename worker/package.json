@@ -1,0 +1,14 @@
+{
+  "name": "convocatorias-worker",
+  "version": "1.0.0",
+  "main": "ingest-bdns.js",
+  "scripts": {
+    "start": "node ingest-bdns.js --watch",
+    "ingest": "node ingest-bdns.js",
+    "dry-run": "node ingest-bdns.js --dry-run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.0",
+    "node-cron": "^3.0.3"
+  }
+}
