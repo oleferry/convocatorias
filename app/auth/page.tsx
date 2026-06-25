@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { T, FONT, FONT_DISPLAY } from '@/lib/theme'
@@ -18,13 +18,23 @@ export default function AuthPage() {
   const router = useRouter()
   const sb = createClient()
 
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('confirmado') === '0') {
+      setError('No pudimos completar la confirmación automáticamente. Si tu cuenta ya está verificada, entra con tu email y contraseña.')
+    }
+  }, [])
+
   async function submit() {
     setLoading(true); setError(''); setOk('')
     try {
       if (mode==='register') {
-        const {error:e} = await sb.auth.signUp({email,password:pass,options:{data:{full_name:name}}})
+        const {error:e} = await sb.auth.signUp({email,password:pass,options:{
+          data:{full_name:name},
+          emailRedirectTo:`${window.location.origin}/auth/callback`,
+        }})
         if(e) throw e
-        setOk('¡Cuenta creada! Revisa tu email para confirmar.')
+        setOk('¡Cuenta creada! Revisa tu email y pulsa el enlace para confirmar.')
       } else {
         const {error:e} = await sb.auth.signInWithPassword({email,password:pass})
         if(e) throw e
