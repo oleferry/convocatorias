@@ -82,6 +82,21 @@ async function getUser(chatId) {
   return data || null
 }
 
+// Canjea un token de vinculación generado en el dashboard (/start <token>)
+async function linkByToken(chatId, token) {
+  const { data: row } = await sb.from('telegram_link_tokens').select('*').eq('token', token).maybeSingle()
+  if (!row || row.used_at || new Date(row.expires_at) < new Date()) {
+    return send(chatId, '⌛ Ese enlace ya no vale (caducan a los 15 min). Genera uno nuevo desde tu panel → <b>"Conectar Telegram"</b>.')
+  }
+  // Libera este chat de cualquier otra cuenta y vincúlalo a la correcta
+  await sb.from('users').update({ telegram_id: null, telegram_linked_at: null }).eq('telegram_id', chatId).neq('id', row.user_id)
+  await sb.from('users').update({ telegram_id: chatId, telegram_linked_at: new Date().toISOString() }).eq('id', row.user_id)
+  await sb.from('telegram_link_tokens').update({ used_at: new Date().toISOString() }).eq('token', token)
+
+  const { data: u } = await sb.from('users').select('full_name').eq('id', row.user_id).maybeSingle()
+  send(chatId, `✅ ¡Conectado${u && u.full_name ? ', ' + esc(u.full_name) : ''}! Ya soy tu perro. 🐾\n\nPrueba /hoy, o pégame el link de un concurso y te lo guardo en la carpeta.`)
+}
+
 function grantLine(g) {
   const sm = STATUS_META[g.status] || STATUS_META.pendiente
   const parts = [`<b>${esc(g.titulo)}</b>`]
@@ -106,52 +121,34 @@ const HELP = [
   '<b>🐾 DamePerrasPerro</b> — el perro que encuentra las perras.',
   '',
   'Esto es lo que sé hacer:',
-  '/vincular <i>tu@email.com</i> — nos presentamos formalmente',
   '/hoy — lo que cierra pronto (no te despistes)',
   '/pendientes — lo que tienes entre manos',
   '/resumen — cómo vas, en números',
   '/buscar — salgo a olfatearte ayudas nuevas',
   '/desvincular — si te quieres ir (tú verás)',
   '',
+  '🔒 ¿Aún no estás conectado? Hazlo desde tu panel → <b>"Conectar Telegram"</b>.',
   '🦴 ¿Has visto un concurso, beca o premio por ahí? <b>Pégame el link</b> y te lo guardo en la carpeta.',
 ].join('\n')
 
-bot.onText(/^\/(start|ayuda|help)\b/, async (msg) => {
+bot.onText(/^\/(start|ayuda|help)(?:@\w+)?(?:\s+(\S+))?/i, async (msg, match) => {
   const chatId = msg.chat.id
+  const cmd = (match[1] || '').toLowerCase()
+  const payload = match[2]
+  if (cmd === 'start' && payload) return linkByToken(chatId, payload)  // /start <token>
+
   const user = await getUser(chatId)
   let head = HELP
   if (user) {
     head = `👋 Cuánto tiempo${user.full_name ? ', ' + esc(user.full_name) : ''}. Tu cuenta está conectada y yo, vigilando plazos por ti.\n\n` + HELP
   } else {
-    head = '👋 Encantado.\n\nMe dedico a una sola cosa: que no se te escape ni una subvención.\n\nPreséntate y empezamos:\n<code>/vincular tu@email.com</code>\n\n' + HELP
+    head = '👋 Encantado.\n\nMe dedico a una sola cosa: que no se te escape ni una perra.\n\nPara empezar, conéctame desde tu panel de DamePerrasPerro → botón <b>"Conectar Telegram"</b>. Es un clic.\n\n' + HELP
   }
   send(chatId, head)
 })
 
-bot.onText(/^\/vincular(?:@\w+)?\s+(.+)$/i, async (msg, match) => {
-  const chatId = msg.chat.id
-  const email = (match[1] || '').trim().toLowerCase()
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return send(chatId, '✋ Email no válido. Uso: <code>/vincular tu@email.com</code>')
-  }
-  // Buscar la cuenta por email
-  const { data: account } = await sb.from('users').select('*').eq('email', email).maybeSingle()
-  if (!account) {
-    return send(chatId, `No encontré ninguna cuenta con el email <b>${esc(email)}</b>.\n\nRegístrate primero en ${esc(APP_URL)}/auth`)
-  }
-  // ¿Ya vinculada a otro chat?
-  if (account.telegram_id && Number(account.telegram_id) !== chatId) {
-    return send(chatId, 'Esta cuenta ya está vinculada a otro chat de Telegram. Usa /desvincular allí primero.')
-  }
-  const { error } = await sb.from('users')
-    .update({ telegram_id: chatId, telegram_linked_at: new Date().toISOString() })
-    .eq('id', account.id)
-  if (error) return send(chatId, '❌ Error al vincular. Inténtalo de nuevo más tarde.')
-  send(chatId, `✅ Listo. <b>${esc(email)}</b> y yo ya somos uña y carne.\n\nPrueba /hoy para ver qué corre prisa, o /buscar y salgo a cazarte ayudas nuevas.`)
-})
-
-bot.onText(/^\/vincular(?:@\w+)?\s*$/i, (msg) => {
-  send(msg.chat.id, 'Uso: <code>/vincular tu@email.com</code>')
+bot.onText(/^\/vincular\b/i, (msg) => {
+  send(msg.chat.id, '🔒 Para conectarte de forma segura, entra en tu panel de DamePerrasPerro → botón <b>"Conectar Telegram"</b> y pulsa el enlace. Así nadie puede suplantarte.')
 })
 
 bot.onText(/^\/desvincular\b/, async (msg) => {
@@ -165,7 +162,7 @@ bot.onText(/^\/desvincular\b/, async (msg) => {
 async function requireUser(chatId) {
   const user = await getUser(chatId)
   if (!user) {
-    send(chatId, 'Eh, eh. Antes preséntate: <code>/vincular tu@email.com</code> 🙂')
+    send(chatId, 'Eh, eh. Antes conéctame desde tu panel de DamePerrasPerro → <b>"Conectar Telegram"</b>. 🙂')
     return null
   }
   return user
@@ -320,7 +317,7 @@ bot.on('message', async (msg) => {
   const chatId = msg.chat.id
 
   const user = await getUser(chatId)
-  if (!user) return send(chatId, '🐾 Huele bien… pero antes preséntate: <code>/vincular tu@email.com</code>')
+  if (!user) return send(chatId, '🐾 Huele bien… pero antes conéctame desde tu panel → <b>"Conectar Telegram"</b>.')
   if (!ai) return send(chatId, 'Necesito la IA configurada para oler links (falta ANTHROPIC_API_KEY).')
 
   send(chatId, '🐾 Déjame oler esto…')

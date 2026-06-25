@@ -218,9 +218,10 @@ function SuggestionCard({ c, saved, onSave }: { c: any; saved: boolean; onSave: 
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
-function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants, user, onSignOut }: {
+function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants, user, onSignOut, tgLinked, onConnectTelegram }: {
   orgs: Organization[]; activeOrgId: string | null; setActiveOrgId: (id: string | null) => void
   filter: string; setFilter: (f: string) => void; grants: Grant[]; user: any; onSignOut: () => void
+  tgLinked: boolean; onConnectTelegram: () => void
 }) {
   const visibleByOrg = grants.filter(g => !activeOrgId || g.org_id === activeOrgId)
   const statCounts = (Object.keys(STATUS_META) as GrantStatus[]).reduce((acc, k) => {
@@ -317,8 +318,21 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
       </div>
 
       {/* Bottom user area */}
-      <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px' }}>
+      <div style={{ padding: '12px 12px 16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        {/* Conectar Telegram */}
+        <button onClick={onConnectTelegram} disabled={tgLinked} style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+          padding: '9px 10px', borderRadius: 8, border: 'none',
+          cursor: tgLinked ? 'default' : 'pointer',
+          background: tgLinked ? 'rgba(43,168,74,0.18)' : 'rgba(255,255,255,0.08)',
+          color: tgLinked ? '#7BE0A0' : 'rgba(255,255,255,0.85)', fontSize: 12.5, fontWeight: 600,
+          outline: tgLinked ? 'none' : '1px solid rgba(255,255,255,0.12)',
+        }}>
+          <span>{tgLinked ? '✅' : '🔗'}</span>
+          {tgLinked ? 'Telegram conectado' : 'Conectar Telegram'}
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px' }}>
           <div style={{ width: 30, height: 30, borderRadius: '50%', background: T.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: T.ink }}>
             {(user?.email || 'A')[0].toUpperCase()}
           </div>
@@ -988,6 +1002,7 @@ export default function Dashboard() {
   const [loadingSug, setLoadingSug] = useState(false)
   const [savedSug, setSavedSug] = useState<Set<string>>(new Set())
   const [memoria, setMemoria] = useState<{ open: boolean; loading: boolean; text: string; error: string } | null>(null)
+  const [tgLinked, setTgLinked] = useState(false)
   const router = useRouter()
   const sb = createClient()
 
@@ -1006,6 +1021,8 @@ export default function Dashboard() {
       const def = orgsList.find(o => o.is_default)
       if (def) setActiveOrgId(def.id)
       else if (orgsList.length > 0) setActiveOrgId(orgsList[0].id)
+      const { data: profile } = await sb.from('users').select('telegram_id').eq('id', user.id).maybeSingle()
+      setTgLinked(!!profile?.telegram_id)
       setLoading(false)
     }
     load()
@@ -1056,6 +1073,15 @@ export default function Dashboard() {
 
   async function handleSignOut() {
     await sb.auth.signOut(); router.push('/auth')
+  }
+
+  async function handleConnectTelegram() {
+    try {
+      const res = await fetch('/api/telegram/link', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok || !data.url) { alert(data?.error || 'No se pudo generar el enlace de Telegram.'); return }
+      window.open(data.url, '_blank')
+    } catch { alert('No se pudo generar el enlace de Telegram.') }
   }
 
   const loadSuggestions = useCallback(async (orgId: string) => {
@@ -1120,7 +1146,8 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: FONT, fontSize: 14 }}>
       <Sidebar orgs={orgs} activeOrgId={activeOrgId} setActiveOrgId={setActiveOrgId}
-        filter={filter} setFilter={setFilter} grants={grants} user={user} onSignOut={handleSignOut} />
+        filter={filter} setFilter={setFilter} grants={grants} user={user} onSignOut={handleSignOut}
+        tgLinked={tgLinked} onConnectTelegram={handleConnectTelegram} />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Topbar search={search} setSearch={setSearch}
