@@ -1033,11 +1033,22 @@ export default function Dashboard() {
 
   async function handleSaveGrant(form: any) {
     const orgId = form.org_id || activeOrgId || null
+    // Las columnas date no aceptan cadena vacía: '' → null
+    const clean: any = {
+      ...form, org_id: orgId,
+      plazo_solicitud: form.plazo_solicitud || null,
+      plazo_ejecucion: form.plazo_ejecucion || null,
+      fecha_publicacion: form.fecha_publicacion || null,
+      resultado_fecha: form.resultado_fecha || null,
+    }
     if (form.id && grants.find(g => g.id === form.id)) {
-      const { data } = await sb.from('grants').update({ ...form, org_id: orgId }).eq('id', form.id).select().single()
+      const { data, error } = await sb.from('grants').update(clean).eq('id', form.id).select().single()
+      if (error) { alert('No se pudo guardar: ' + error.message); return }
       if (data) { persist(grants.map(g => g.id === form.id ? data : g)); setSelected(data) }
     } else {
-      const { data } = await sb.from('grants').insert({ ...form, user_id: user.id, org_id: orgId, source: 'manual' }).select().single()
+      delete clean.id
+      const { data, error } = await sb.from('grants').insert({ ...clean, user_id: user.id, source: clean.source || 'manual' }).select().single()
+      if (error) { alert('No se pudo guardar: ' + error.message); return }
       if (data) persist([data, ...grants])
     }
     setModal(null)
@@ -1048,7 +1059,7 @@ export default function Dashboard() {
       user_id: user.id, org_id: r.org_id || activeOrgId || null,
       titulo: r.titulo, organismo: r.organismo, tipo: r.tipo || 'publica',
       ambito: r.ambito || 'nacional', importe_max: r.importe_max,
-      plazo_solicitud: r.plazo_solicitud, resumen: r.resumen,
+      plazo_solicitud: r.plazo_solicitud || null, resumen: r.resumen,
       requisitos: Array.isArray(r.requisitos) ? r.requisitos.join('\n') : r.requisitos || '',
       url: r.url || '', elegibilidad: r.elegibilidad, status: 'pendiente',
       notas: `Encontrada automáticamente. ${r.matchReason || ''}`,
