@@ -49,7 +49,7 @@ export default function AuthPage() {
           <div style={{display:'flex',justifyContent:'center',marginBottom:12}}>
             <div style={{width:58,height:58,borderRadius:14,background:C.gold,display:'flex',
               alignItems:'center',justifyContent:'center',overflow:'hidden',fontSize:32}}>
-              <img src="/logo.png" alt="DamePerrasPerro" width={58} height={58}
+              <img src="/logo.png?v=2" alt="DamePerrasPerro" width={58} height={58}
                 style={{width:'100%',height:'100%',objectFit:'cover'}}
                 onError={(e)=>{const t=e.currentTarget;t.style.display='none';const p=t.parentElement;if(p)p.textContent='🐶'}}/>
             </div>

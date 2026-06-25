@@ -26,7 +26,7 @@ function BrandMark({ size = 32 }: { size?: number }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       overflow: 'hidden', fontSize: Math.round(size * 0.56),
     }}>
-      <img src="/logo.png" alt="DamePerrasPerro" width={size} height={size}
+      <img src="/logo.png?v=2" alt="DamePerrasPerro" width={size} height={size}
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         onError={(e) => { const t = e.currentTarget; t.style.display = 'none'; const p = t.parentElement; if (p) p.textContent = '🐶' }} />
     </div>
