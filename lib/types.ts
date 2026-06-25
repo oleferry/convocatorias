@@ -10,9 +10,11 @@ export interface Organization {
   name: string
   tipo_entidad: TipoEntidad
   ccaa: string
+  provincia?: string
   municipio?: string
   cnae?: string
   cnae_desc?: string
+  cnaes?: string[]
   iae?: string
   iae_desc?: string
   empleados?: number

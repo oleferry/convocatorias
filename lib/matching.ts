@@ -65,12 +65,14 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
 
   let score = 20 // base por superar región + abierta
 
-  // ── Relevancia: sector (CNAE) ──
+  // ── Relevancia: sector (CNAE, admite varios) ──
   let sectorMatch = false
-  const cnaeDiv = (org.cnae || '').replace(/\D/g, '').slice(0, 2)
+  const divs = new Set<string>()
+  for (const code of (org.cnaes || [])) { const d = String(code).replace(/\D/g, '').slice(0, 2); if (d) divs.add(d) }
+  if (org.cnae) { const d = org.cnae.replace(/\D/g, '').slice(0, 2); if (d) divs.add(d) }
   const hasSectores = !!(c.sectores && c.sectores.length)
-  if (cnaeDiv && hasSectores) {
-    sectorMatch = c.sectores!.some(s => (s.codigo || '').slice(0, 2) === cnaeDiv)
+  if (divs.size && hasSectores) {
+    sectorMatch = c.sectores!.some(s => divs.has((s.codigo || '').slice(0, 2)))
     if (sectorMatch) { score += 40; reasons.push('Sector CNAE coincide') }
   }
 
@@ -97,7 +99,7 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   }
 
   // ── ¿Hay datos suficientes para juzgar el sector? ──
-  const sectorJudgeable = (cnaeDiv && hasSectores) || hasBenef || profileTokens.size > 0
+  const sectorJudgeable = (divs.size > 0 && hasSectores) || hasBenef || profileTokens.size > 0
   const relevant = sectorMatch || benefMatch || kwHits > 0
 
   // Criterio "CCAA + abierta + sector": si podemos juzgar la relevancia y nada

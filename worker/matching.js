@@ -37,12 +37,14 @@ function matchGrant(c, org, todayISO) {
 
   let score = 20
 
-  // Sector (CNAE)
+  // Sector (CNAE, admite varios)
   let sectorMatch = false
-  const cnaeDiv = (org.cnae || '').replace(/\D/g, '').slice(0, 2)
+  const divs = new Set()
+  for (const code of (org.cnaes || [])) { const d = String(code).replace(/\D/g, '').slice(0, 2); if (d) divs.add(d) }
+  if (org.cnae) { const d = org.cnae.replace(/\D/g, '').slice(0, 2); if (d) divs.add(d) }
   const hasSectores = !!(c.sectores && c.sectores.length)
-  if (cnaeDiv && hasSectores) {
-    sectorMatch = c.sectores.some(s => (s.codigo || '').slice(0, 2) === cnaeDiv)
+  if (divs.size && hasSectores) {
+    sectorMatch = c.sectores.some(s => divs.has((s.codigo || '').slice(0, 2)))
     if (sectorMatch) { score += 40; reasons.push('Sector CNAE coincide') }
   }
 
@@ -68,7 +70,7 @@ function matchGrant(c, org, todayISO) {
     if (kwHits > 0) { score += Math.min(25, kwHits * 8); reasons.push(`${kwHits} palabra(s) clave`) }
   }
 
-  const sectorJudgeable = (cnaeDiv && hasSectores) || hasBenef || profileTokens.size > 0
+  const sectorJudgeable = (divs.size > 0 && hasSectores) || hasBenef || profileTokens.size > 0
   const relevant = sectorMatch || benefMatch || kwHits > 0
   const match = sectorJudgeable ? relevant : true
 
