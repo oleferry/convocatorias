@@ -1,46 +1,51 @@
-// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
-// Concepto: "Expediente digital" — el rigor de lo oficial con la claridad de lo moderno.
-// Paleta: papel crudo + tinta profunda + verde oportunidad + ámbar urgencia.
-// Fuente única de verdad para el diseño (ver diseno-referencia.jsx).
+// ─── DESIGN TOKENS · DamePerrasPerro ──────────────────────────────────────────
+// "El perro que encuentra las perras." Marca: directa, canalla, clara, útil.
+// Paleta oficial del kit: negro tinta + oro + papel crema + verde éxito + rojo urgencia.
 export const T = {
   // Fondos
-  bg:        '#F7F5F0',   // papel crudo
+  bg:        '#F8F4EC',   // papel crema (kit)
   bgCard:    '#FFFFFF',
-  bgSidebar: '#1C2B3A',   // tinta noche
+  bgSidebar: '#121212',   // negro primario (kit)
 
   // Texto
-  ink:       '#111827',
-  inkMid:    '#374151',
+  ink:       '#121212',
+  inkMid:    '#3A3A3A',
   inkLight:  '#6B7280',
   inkMuted:  '#9CA3AF',
 
-  // Acento primario — verde señal (oportunidad)
-  green:     '#059669',
-  greenSoft: '#D1FAE5',
-  greenDim:  '#064E3B',
+  // Acento de marca — ORO (secundario del kit, color de acción principal)
+  gold:      '#E6A800',
+  goldSoft:  '#FBEFC9',
 
-  // Acento urgencia
-  amber:     '#D97706',
-  amberSoft: '#FEF3C7',
+  // Éxito — verde (kit)
+  green:     '#2BA84A',
+  greenSoft: '#DDF3E2',
+  greenDim:  '#176B2E',
 
-  // Acento peligro
-  red:       '#DC2626',
-  redSoft:   '#FEE2E2',
+  // Urgencia — rojo (kit)
+  red:       '#D62828',
+  redSoft:   '#FBE2E2',
 
-  // Acento neutral/marino (marca)
-  navy:      '#1C2B3A',
-  navySoft:  '#EFF3F7',
+  // Compat: "amber" se reasigna al oro de marca (acento en formularios)
+  amber:     '#E6A800',
+  amberSoft: '#FBEFC9',
 
-  // Púrpura IA
+  // "navy" se reasigna al negro de marca (cabeceras/botones oscuros)
+  navy:      '#121212',
+  navySoft:  '#EFEBE0',
+
+  // Púrpura IA (se mantiene para señalar "IA")
   purple:    '#7C3AED',
   purpleSoft:'#EDE9FE',
 
   // Bordes
-  border:    '#E5E7EB',
-  borderMid: '#D1D5DB',
+  border:    '#E7E2D6',
+  borderMid: '#D8D2C4',
 } as const
 
 export const FONT = "'Inter', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+// Títulos y logotipo del kit
+export const FONT_DISPLAY = "'Bricolage Grotesque', 'Inter', -apple-system, 'Segoe UI', sans-serif"
 
 // ─── URGENCY SYSTEM ───────────────────────────────────────────────────────────
 export function daysLeft(d?: string | null): number | null {
@@ -55,6 +60,6 @@ export function urgency(days: number | null): Urgency {
   if (days < 0)      return { color: T.inkMuted, label: 'Vencida',   tier: -1 }
   if (days === 0)    return { color: T.red,      label: '¡Hoy!',     tier: 4 }
   if (days <= 7)     return { color: T.red,      label: `${days}d`,  tier: 3 }
-  if (days <= 21)    return { color: T.amber,    label: `${days}d`,  tier: 2 }
+  if (days <= 21)    return { color: T.gold,     label: `${days}d`,  tier: 2 }
   return               { color: T.green,    label: `${days}d`,  tier: 1 }
 }

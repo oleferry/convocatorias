@@ -2,10 +2,10 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { T, FONT } from '@/lib/theme'
+import { T, FONT, FONT_DISPLAY } from '@/lib/theme'
 
-const C = { navy:T.navy,amber:T.amber,white:T.bgCard,parchment:T.bg,
-  slate:T.inkLight,red:T.red,parchmentDark:T.border,green:T.green }
+const C = { navy:T.navy,amber:T.amber,white:T.bgCard,parchment:T.bg,ink:T.ink,
+  slate:T.inkLight,red:T.red,parchmentDark:T.border,green:T.green,gold:T.gold }
 
 export default function AuthPage() {
   const [mode,setMode]       = useState<'login'|'register'>('login')
@@ -46,9 +46,18 @@ export default function AuthPage() {
       <div style={{background:C.white,borderRadius:16,padding:40,width:'100%',maxWidth:420,
         boxShadow:'0 8px 40px rgba(27,42,74,0.12)'}}>
         <div style={{textAlign:'center',marginBottom:32}}>
-          <div style={{fontSize:40,marginBottom:8}}>📑</div>
-          <h1 style={{margin:0,fontSize:22,color:C.navy,fontWeight:800}}>Gestor de Convocatorias</h1>
-          <p style={{margin:'8px 0 0',fontSize:14,color:C.slate}}>Subvenciones y ayudas con IA</p>
+          <div style={{display:'flex',justifyContent:'center',marginBottom:12}}>
+            <div style={{width:58,height:58,borderRadius:14,background:C.gold,display:'flex',
+              alignItems:'center',justifyContent:'center',overflow:'hidden',fontSize:32}}>
+              <img src="/logo.png" alt="DamePerrasPerro" width={58} height={58}
+                style={{width:'100%',height:'100%',objectFit:'cover'}}
+                onError={(e)=>{const t=e.currentTarget;t.style.display='none';const p=t.parentElement;if(p)p.textContent='🐶'}}/>
+            </div>
+          </div>
+          <h1 style={{margin:0,fontSize:26,color:C.navy,fontWeight:800,fontFamily:FONT_DISPLAY,letterSpacing:'-0.02em'}}>
+            Dame<span style={{color:C.gold}}>Perras</span>Perro
+          </h1>
+          <p style={{margin:'8px 0 0',fontSize:14,color:C.slate}}>El perro que encuentra las perras 🐾</p>
         </div>
         <div style={{display:'flex',marginBottom:24,borderRadius:8,overflow:'hidden',
           border:`1px solid ${C.parchmentDark}`}}>
@@ -75,8 +84,8 @@ export default function AuthPage() {
           {error&&<div style={{padding:10,background:T.redSoft,borderRadius:6,fontSize:13,color:C.red}}>{error}</div>}
           {ok&&<div style={{padding:10,background:T.greenSoft,borderRadius:6,fontSize:13,color:C.green}}>{ok}</div>}
           <button onClick={submit} disabled={loading||!email||!pass} style={{padding:'12px',
-            background:loading?C.slate:C.green,color:C.white,border:'none',borderRadius:8,
-            fontSize:15,fontWeight:700,cursor:loading?'not-allowed':'pointer',marginTop:4}}>
+            background:loading?C.slate:C.gold,color:loading?C.white:C.ink,border:'none',borderRadius:8,
+            fontSize:15,fontWeight:800,cursor:loading?'not-allowed':'pointer',marginTop:4}}>
             {loading?'Cargando…':mode==='login'?'Entrar':'Crear cuenta'}
           </button>
         </div>

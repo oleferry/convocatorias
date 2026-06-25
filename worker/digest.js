@@ -79,8 +79,7 @@ function composeTelegram(user, items) {
     : '\n\nNo las dejes para el último día. Sí, te lo digo a ti.'
 
   return [
-    `🕵️ ${saludo}he vuelto a cotillear la Base Nacional de Subvenciones por ti.`,
-    `Esta semana hay <b>${items.length}</b> que te pueden venir al pelo:`,
+    `🐾 ${saludo}he olido <b>${items.length}</b> ${items.length === 1 ? 'perra' : 'perras'} que te pueden encajar esta semana:`,
     '',
     top,
     cierre,
@@ -97,12 +96,12 @@ function composeEmail(user, items) {
     ? `${n} ayudas para ti (y una cierra en ${urg} días)`
     : `Te he encontrado ${n} ayuda${n !== 1 ? 's' : ''} esta semana`
 
-  const T = { bg: '#F7F5F0', card: '#FFFFFF', ink: '#111827', mid: '#374151', light: '#6B7280', navy: '#1C2B3A', green: '#059669', amber: '#D97706', purple: '#7C3AED', border: '#E5E7EB' }
+  const T = { bg: '#F8F4EC', card: '#FFFFFF', ink: '#121212', mid: '#3A3A3A', light: '#6B7280', navy: '#121212', green: '#2BA84A', amber: '#E6A800', red: '#D62828', purple: '#7C3AED', border: '#E7E2D6' }
 
   const cards = items.map((it) => {
     const c = it.c
     const dl = daysLeft(c.fecha_fin)
-    const plazoColor = dl != null && dl <= 7 ? T.amber : T.green
+    const plazoColor = dl != null && dl <= 7 ? T.red : T.green
     return `
     <div style="background:${T.card};border:1px solid ${T.border};border-radius:12px;padding:18px 20px;margin:0 0 14px">
       <div style="font-size:12px;color:${T.light};margin-bottom:4px">🏛️ ${esc(c.organo || c.nivel1 || '')}</div>
@@ -123,14 +122,14 @@ function composeEmail(user, items) {
   const html = `
   <div style="background:${T.bg};padding:24px 0;font-family:'Inter',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
     <div style="max-width:600px;margin:0 auto;padding:0 16px">
-      <div style="font-size:13px;color:${T.light};margin-bottom:18px">📑 Tu buscador de subvenciones particular</div>
+      <div style="font-size:13px;color:${T.light};margin-bottom:18px">🐾 <b style="color:${T.ink}">DamePerrasPerro</b> · el perro que encuentra las perras</div>
 
       <p style="font-size:15px;color:${T.ink};line-height:1.6;margin:0 0 14px">Hola${name ? ' ' + esc(name) : ''}:</p>
       <p style="font-size:15px;color:${T.mid};line-height:1.7;margin:0 0 14px">
-        Te seré sincero: me he pasado la semana entre el BOE y la Base Nacional de Subvenciones para que tú no tengas que hacerlo.
+        Me he pasado la semana con el hocico metido en la Base Nacional de Subvenciones para que tú no tengas que hacerlo.
       </p>
       <p style="font-size:15px;color:${T.mid};line-height:1.7;margin:0 0 22px">
-        Y ha merecido la pena. Mira lo que te he encontrado:
+        Y ha merecido la pena. Mira lo que he olido:
       </p>
 
       ${cards}
@@ -138,11 +137,11 @@ function composeEmail(user, items) {
       <p style="font-size:15px;color:${T.mid};line-height:1.7;margin:22px 0 18px">${cierre}</p>
 
       <div style="text-align:center;margin:0 0 26px">
-        <a href="${esc(APP_URL)}/dashboard" style="display:inline-block;background:${T.green};color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px">Verlas en tu panel →</a>
+        <a href="${esc(APP_URL)}/dashboard" style="display:inline-block;background:${T.amber};color:#121212;font-size:15px;font-weight:800;text-decoration:none;padding:12px 28px;border-radius:10px">Verlas en tu panel →</a>
       </div>
 
-      <p style="font-size:14px;color:${T.mid};line-height:1.7;margin:0 0 4px">Un abrazo,</p>
-      <p style="font-size:14px;color:${T.ink};font-weight:600;line-height:1.7;margin:0 0 22px">El equipo de Convocatorias</p>
+      <p style="font-size:14px;color:${T.mid};line-height:1.7;margin:0 0 4px">Con el hocico bien afinado,</p>
+      <p style="font-size:14px;color:${T.ink};font-weight:700;line-height:1.7;margin:0 0 22px">DamePerrasPerro 🐾</p>
 
       <div style="border-top:1px solid ${T.border};padding-top:14px">
         <p style="font-size:12.5px;color:${T.light};line-height:1.6;margin:0">

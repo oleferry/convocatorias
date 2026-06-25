@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import type { Organization, Grant, GrantStatus } from '@/lib/types'
 import { STATUS_META, TYPE_META } from '@/lib/types'
-import { T, FONT, daysLeft, urgency } from '@/lib/theme'
+import { T, FONT, FONT_DISPLAY, daysLeft, urgency } from '@/lib/theme'
 import { publicToGrant, formatEuro } from '@/lib/matching'
 
 // Paleta de formularios derivada de los tokens de diseño (compatibilidad con el
@@ -15,6 +15,22 @@ const C = {
   slate: T.inkLight, muted: T.inkMuted, white: T.bgCard,
   purple: T.purple, purpleLight: T.purpleSoft,
   parchment: T.bg, parchmentDark: T.border, ink: T.ink,
+}
+
+// ─── BRAND MARK ───────────────────────────────────────────────────────────────
+// Usa /public/logo.png. Si aún no lo has subido, cae a un emoji 🐶 sobre oro.
+function BrandMark({ size = 32 }: { size?: number }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 9, background: T.gold, flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden', fontSize: Math.round(size * 0.56),
+    }}>
+      <img src="/logo.png" alt="DamePerrasPerro" width={size} height={size}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        onError={(e) => { const t = e.currentTarget; t.style.display = 'none'; const p = t.parentElement; if (p) p.textContent = '🐶' }} />
+    </div>
+  )
 }
 
 // ─── SHARED UI ATOMS ──────────────────────────────────────────────────────────
@@ -194,7 +210,7 @@ function SuggestionCard({ c, saved, onSave }: { c: any; saved: boolean; onSave: 
           <div style={{ flex: 1 }} />
           {saved
             ? <span style={{ fontSize: 13, color: T.green, fontWeight: 700 }}>✅ Guardada</span>
-            : <button onClick={onSave} style={{ padding: '7px 16px', background: T.green, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Guardar</button>}
+            : <button onClick={onSave} style={{ padding: '7px 16px', background: T.gold, color: T.ink, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>+ Guardar</button>}
         </div>
       </div>
     </div>
@@ -219,12 +235,14 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
       position: 'sticky', top: 0, alignSelf: 'flex-start',
     }}>
       {/* Logo */}
-      <div style={{ padding: '24px 20px 20px' }}>
+      <div style={{ padding: '22px 18px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: T.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>📑</div>
+          <BrandMark size={34} />
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#FFF', letterSpacing: '-0.02em' }}>Convocatorias</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Gestor con IA</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#FFF', letterSpacing: '-0.02em', fontFamily: FONT_DISPLAY, lineHeight: 1 }}>
+              Dame<span style={{ color: T.gold }}>Perras</span>Perro
+            </div>
+            <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.4)', marginTop: 3 }}>El perro que encuentra las perras</div>
           </div>
         </div>
       </div>
@@ -301,7 +319,7 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
       {/* Bottom user area */}
       <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px' }}>
-          <div style={{ width: 30, height: 30, borderRadius: '50%', background: T.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#FFF' }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: T.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: T.ink }}>
             {(user?.email || 'A')[0].toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -348,8 +366,8 @@ function Topbar({ search, setSearch, onAdd, onAI }: { search: string; setSearch:
       </button>
       <button onClick={onAdd} style={{
         display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 10,
-        border: 'none', cursor: 'pointer', background: T.green, color: '#FFF', fontSize: 13, fontWeight: 700,
-        boxShadow: '0 2px 8px rgba(5,150,105,0.3)',
+        border: 'none', cursor: 'pointer', background: T.gold, color: T.ink, fontSize: 13, fontWeight: 800,
+        boxShadow: '0 2px 8px rgba(230,168,0,0.35)',
       }}>
         + Nueva
       </button>
@@ -1077,7 +1095,7 @@ export default function Dashboard() {
                   </div>
                   {orgs.length === 0
                     ? <a href="/organizations" style={{ padding: '10px 24px', background: T.navy, color: '#FFF', borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: 'none', display: 'inline-block' }}>Crear perfil de empresa</a>
-                    : !search && filter === 'all' && <button onClick={() => setModal('add')} style={{ padding: '10px 24px', background: T.green, color: '#FFF', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>+ Añadir convocatoria</button>}
+                    : !search && filter === 'all' && <button onClick={() => setModal('add')} style={{ padding: '10px 24px', background: T.gold, color: T.ink, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>+ Añadir convocatoria</button>}
                 </div>
               ) : visible.map(g => (
                 <GrantCard key={g.id} grant={g} org={getOrg(g.org_id)} onClick={() => setSelected(g)} compact={view === 'list'} />

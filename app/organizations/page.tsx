@@ -9,7 +9,7 @@ import { T, FONT } from '@/lib/theme'
 const C = { navy:T.navy,amber:T.amber,amberLight:T.amberSoft,
   slate:T.inkLight,muted:T.inkMuted,white:T.bgCard,
   parchment:T.bg,parchmentDark:T.border,ink:T.ink,
-  red:T.red,green:T.green,greenLight:T.greenSoft,purple:T.purple }
+  red:T.red,green:T.green,greenLight:T.greenSoft,purple:T.purple,gold:T.gold }
 
 const inp: React.CSSProperties = { width:'100%',padding:'9px 11px',
   border:`1px solid ${C.parchmentDark}`,borderRadius:7,fontSize:14,
@@ -213,8 +213,8 @@ export default function OrganizationsPage() {
               Cada perfil tiene su propio CNAE, IAE y búsquedas independientes
             </p>
           </div>
-          <button onClick={()=>setCreating(true)} style={{padding:'9px 18px',background:C.green,
-            color:C.white,border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+          <button onClick={()=>setCreating(true)} style={{padding:'9px 18px',background:C.gold,
+            color:C.ink,border:'none',borderRadius:8,fontSize:13,fontWeight:800,cursor:'pointer'}}>
             + Nuevo perfil
           </button>
         </div>
@@ -228,8 +228,8 @@ export default function OrganizationsPage() {
             <p style={{color:C.slate,fontSize:14,margin:'0 0 24px'}}>
               Crea tu primer perfil de empresa para empezar a gestionar convocatorias.
             </p>
-            <button onClick={()=>setCreating(true)} style={{padding:'10px 24px',background:C.green,
-              color:C.white,border:'none',borderRadius:6,fontSize:14,fontWeight:700,cursor:'pointer'}}>
+            <button onClick={()=>setCreating(true)} style={{padding:'10px 24px',background:C.gold,
+              color:C.ink,border:'none',borderRadius:6,fontSize:14,fontWeight:800,cursor:'pointer'}}>
               Crear primer perfil
             </button>
           </div>

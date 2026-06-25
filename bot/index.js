@@ -103,16 +103,17 @@ function grantsMessage(title, grants) {
 
 // ── Comandos ───────────────────────────────────────────────────
 const HELP = [
-  '<b>📑 Soy tu cazasubvenciones de bolsillo</b>',
+  '<b>🐾 DamePerrasPerro</b> — el perro que encuentra las perras.',
   '',
   'Esto es lo que sé hacer:',
   '/vincular <i>tu@email.com</i> — nos presentamos formalmente',
   '/hoy — lo que cierra pronto (no te despistes)',
   '/pendientes — lo que tienes entre manos',
   '/resumen — cómo vas, en números',
-  '/buscar — salgo a buscarte ayudas nuevas',
+  '/buscar — salgo a olfatearte ayudas nuevas',
   '/desvincular — si te quieres ir (tú verás)',
-  '/ayuda — esto de aquí',
+  '',
+  '🦴 ¿Has visto un concurso, beca o premio por ahí? <b>Pégame el link</b> y te lo guardo en la carpeta.',
 ].join('\n')
 
 bot.onText(/^\/(start|ayuda|help)\b/, async (msg) => {
@@ -293,6 +294,62 @@ Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`
   try { return extractJSON(text.replace(/```json|```/g, '').trim(), '[') }
   catch { return [] }
 }
+
+// Analiza un link/texto suelto (concurso, beca, premio…) → objeto convocatoria
+async function analyzeGrant(input) {
+  const sys = `Experto en subvenciones, concursos, premios y becas en España. Devuelve SOLO JSON sin backticks:
+{"titulo":"","organismo":"","tipo":"publica|concurso|privada|europeo","ambito":"local|autonómico|nacional|europeo|internacional","importe_max":"","plazo_solicitud":"YYYY-MM-DD o null","resumen":"2-3 frases","requisitos":"uno por línea","url":"url o null","elegibilidad":""}`
+  const r = await ai.messages.create({
+    model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys,
+    messages: [{ role: 'user', content: `Analiza esto y extrae la convocatoria:\n${input}` }],
+    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+  })
+  const text = r.content.map(b => (b.type === 'text' ? b.text : '')).join('\n')
+  return extractJSON(text.replace(/```json|```/g, '').trim(), '{')
+}
+
+// ── Tragar links: concursos/becas/premios que no están en la BDNS ──
+const TIPOS_VALIDOS = ['publica', 'concurso', 'privada', 'europeo']
+const URL_RE = /https?:\/\/[^\s]+/i
+
+bot.on('message', async (msg) => {
+  const text = (msg.text || '').trim()
+  if (!text || text.startsWith('/')) return       // los comandos los gestiona onText
+  const m = text.match(URL_RE)
+  if (!m) return                                   // solo nos interesan mensajes con link
+  const chatId = msg.chat.id
+
+  const user = await getUser(chatId)
+  if (!user) return send(chatId, '🐾 Huele bien… pero antes preséntate: <code>/vincular tu@email.com</code>')
+  if (!ai) return send(chatId, 'Necesito la IA configurada para oler links (falta ANTHROPIC_API_KEY).')
+
+  send(chatId, '🐾 Déjame oler esto…')
+  try {
+    const p = await analyzeGrant(text)
+    const { data: orgs } = await sb.from('organizations').select('id')
+      .eq('user_id', user.id).eq('is_archived', false)
+      .order('is_default', { ascending: false }).order('created_at')
+    const orgId = (orgs && orgs[0] && orgs[0].id) || null
+
+    const { data, error } = await sb.from('grants').insert({
+      user_id: user.id, org_id: orgId,
+      titulo: p.titulo || 'Convocatoria sin título', organismo: p.organismo || '',
+      tipo: TIPOS_VALIDOS.includes(p.tipo) ? p.tipo : 'privada',
+      ambito: p.ambito || 'nacional',
+      importe_max: p.importe_max || null, plazo_solicitud: p.plazo_solicitud || null,
+      resumen: p.resumen || '',
+      requisitos: Array.isArray(p.requisitos) ? p.requisitos.join('\n') : (p.requisitos || ''),
+      url: p.url || m[0], elegibilidad: p.elegibilidad || '', status: 'pendiente',
+      notas: 'Te la traje yo desde un link de Telegram. 🐾', auto_found: true, source: 'bot',
+    }).select().single()
+    if (error) throw error
+
+    send(chatId, `🦴 ¡Toma! Ya la tienes en tu carpeta:\n\n${grantLine(data)}\n\nLa ves en ${esc(APP_URL)}/dashboard`)
+  } catch (e) {
+    console.error('[link]', e)
+    send(chatId, '😕 Este link se me ha atragantado. Pégalo en la web (+ Nueva → Analizar con IA) y lo guardo seguro.')
+  }
+})
 
 // ── Alertas de plazos (cron diario, 9:00 Europe/Madrid) ────────
 async function runDeadlineAlerts() {
