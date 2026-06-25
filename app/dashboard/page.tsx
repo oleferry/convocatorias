@@ -1033,13 +1033,21 @@ export default function Dashboard() {
 
   async function handleSaveGrant(form: any) {
     const orgId = form.org_id || activeOrgId || null
-    // Las columnas date no aceptan cadena vacía: '' → null
+    // Solo aceptamos fechas con formato YYYY-MM-DD; '', 'null' o basura → null
+    const dateOrNull = (v: any) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : null)
+    const TIPOS = ['publica', 'concurso', 'privada', 'europeo']
+    const AMBITOS = ['local', 'autonómico', 'nacional', 'europeo', 'internacional']
+    const STATUSES = ['pendiente', 'revisada', 'en_proceso', 'presentada', 'resuelta_positiva', 'resuelta_negativa', 'descartada']
     const clean: any = {
       ...form, org_id: orgId,
-      plazo_solicitud: form.plazo_solicitud || null,
-      plazo_ejecucion: form.plazo_ejecucion || null,
-      fecha_publicacion: form.fecha_publicacion || null,
-      resultado_fecha: form.resultado_fecha || null,
+      tipo: TIPOS.includes(form.tipo) ? form.tipo : 'publica',
+      ambito: AMBITOS.includes(form.ambito) ? form.ambito : 'nacional',
+      status: STATUSES.includes(form.status) ? form.status : 'pendiente',
+      prioridad: [1, 2, 3].includes(parseInt(form.prioridad)) ? parseInt(form.prioridad) : 2,
+      plazo_solicitud: dateOrNull(form.plazo_solicitud),
+      plazo_ejecucion: dateOrNull(form.plazo_ejecucion),
+      fecha_publicacion: dateOrNull(form.fecha_publicacion),
+      resultado_fecha: dateOrNull(form.resultado_fecha),
     }
     if (form.id && grants.find(g => g.id === form.id)) {
       const { data, error } = await sb.from('grants').update(clean).eq('id', form.id).select().single()
@@ -1047,9 +1055,14 @@ export default function Dashboard() {
       if (data) { persist(grants.map(g => g.id === form.id ? data : g)); setSelected(data) }
     } else {
       delete clean.id
-      const { data, error } = await sb.from('grants').insert({ ...clean, user_id: user.id, source: clean.source || 'manual' }).select().single()
+      const { data, error } = await sb.from('grants').insert({ ...clean, user_id: user.id, source: 'manual' }).select().single()
       if (error) { alert('No se pudo guardar: ' + error.message); return }
-      if (data) persist([data, ...grants])
+      if (data) {
+        persist([data, ...grants])
+        // Llevar la vista a donde está la convocatoria recién guardada
+        setMode('grants'); setFilter('all'); setSearch('')
+        if (data.org_id) setActiveOrgId(data.org_id)
+      }
     }
     setModal(null)
   }
