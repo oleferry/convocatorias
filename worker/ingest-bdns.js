@@ -26,7 +26,8 @@ const {
 } = process.env
 
 let sb = null
-if (!DRY) {
+function initDb() {
+  if (sb || DRY) return sb
   if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.error('Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY (usa --dry-run para probar sin BD)')
     process.exit(1)
@@ -35,6 +36,7 @@ if (!DRY) {
   sb = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+  return sb
 }
 
 // Límite de detalles por pasada (protección ante ventanas grandes)
@@ -154,6 +156,7 @@ function keepByCcaa(item, ccaaSet) {
 
 async function runOnce() {
   const started = Date.now()
+  initDb()
   const since = await getSyncSince()
   const today = new Date()
   const ccaaSet = await getActiveCcaaSet()
@@ -205,13 +208,16 @@ async function runOnce() {
   return rows.length
 }
 
-// ── Arranque ───────────────────────────────────────────────────
-if (WATCH) {
-  const cron = require('node-cron')
-  console.log('🗂️  Worker BDNS en marcha. Ingesta diaria 06:00 Europe/Madrid.')
-  cron.schedule('0 6 * * *', () => runOnce().catch(e => console.error('[bdns] run error', e)), { timezone: 'Europe/Madrid' })
-  // primera pasada al arrancar
-  runOnce().catch(e => console.error('[bdns] run error', e))
-} else {
-  runOnce().then(() => process.exit(0)).catch(e => { console.error('[bdns] run error', e); process.exit(1) })
+// ── Arranque (solo si se ejecuta directamente) ─────────────────
+if (require.main === module) {
+  if (WATCH) {
+    const cron = require('node-cron')
+    console.log('🗂️  Worker BDNS en marcha. Ingesta diaria 06:00 Europe/Madrid.')
+    cron.schedule('0 6 * * *', () => runOnce().catch(e => console.error('[bdns] run error', e)), { timezone: 'Europe/Madrid' })
+    runOnce().catch(e => console.error('[bdns] run error', e)) // primera pasada al arrancar
+  } else {
+    runOnce().then(() => process.exit(0)).catch(e => { console.error('[bdns] run error', e); process.exit(1) })
+  }
 }
+
+module.exports = { runOnce }

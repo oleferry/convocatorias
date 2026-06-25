@@ -97,22 +97,22 @@ function grantLine(g) {
 }
 
 function grantsMessage(title, grants) {
-  if (!grants.length) return `${title}\n\nNo hay convocatorias que mostrar.`
+  if (!grants.length) return `${title}\n\nDe momento, nada por aquí. Mejor eso que ir con prisas. 🌴`
   return `${title}\n\n` + grants.map(grantLine).join('\n\n')
 }
 
 // ── Comandos ───────────────────────────────────────────────────
 const HELP = [
-  '<b>📑 Gestor de Convocatorias</b>',
+  '<b>📑 Soy tu cazasubvenciones de bolsillo</b>',
   '',
-  'Comandos disponibles:',
-  '/vincular <i>tu@email.com</i> — vincula este chat con tu cuenta',
-  '/desvincular — desvincula este chat',
-  '/hoy — convocatorias urgentes (≤ 14 días)',
-  '/pendientes — convocatorias activas (pendiente/en proceso…)',
-  '/resumen — estadísticas de tu cuenta',
-  '/buscar — búsqueda autónoma con IA para tu perfil activo',
-  '/ayuda — muestra esta ayuda',
+  'Esto es lo que sé hacer:',
+  '/vincular <i>tu@email.com</i> — nos presentamos formalmente',
+  '/hoy — lo que cierra pronto (no te despistes)',
+  '/pendientes — lo que tienes entre manos',
+  '/resumen — cómo vas, en números',
+  '/buscar — salgo a buscarte ayudas nuevas',
+  '/desvincular — si te quieres ir (tú verás)',
+  '/ayuda — esto de aquí',
 ].join('\n')
 
 bot.onText(/^\/(start|ayuda|help)\b/, async (msg) => {
@@ -120,9 +120,9 @@ bot.onText(/^\/(start|ayuda|help)\b/, async (msg) => {
   const user = await getUser(chatId)
   let head = HELP
   if (user) {
-    head = `👋 ¡Hola${user.full_name ? ', ' + esc(user.full_name) : ''}! Tu cuenta está vinculada.\n\n` + HELP
+    head = `👋 Cuánto tiempo${user.full_name ? ', ' + esc(user.full_name) : ''}. Tu cuenta está conectada y yo, vigilando plazos por ti.\n\n` + HELP
   } else {
-    head = '👋 ¡Bienvenido!\n\nPara empezar, vincula este chat con tu cuenta web:\n<code>/vincular tu@email.com</code>\n\n' + HELP
+    head = '👋 Encantado.\n\nMe dedico a una sola cosa: que no se te escape ni una subvención.\n\nPreséntate y empezamos:\n<code>/vincular tu@email.com</code>\n\n' + HELP
   }
   send(chatId, head)
 })
@@ -146,7 +146,7 @@ bot.onText(/^\/vincular(?:@\w+)?\s+(.+)$/i, async (msg, match) => {
     .update({ telegram_id: chatId, telegram_linked_at: new Date().toISOString() })
     .eq('id', account.id)
   if (error) return send(chatId, '❌ Error al vincular. Inténtalo de nuevo más tarde.')
-  send(chatId, `✅ Cuenta <b>${esc(email)}</b> vinculada correctamente.\n\nYa puedes usar /hoy, /pendientes, /resumen y /buscar.`)
+  send(chatId, `✅ Listo. <b>${esc(email)}</b> y yo ya somos uña y carne.\n\nPrueba /hoy para ver qué corre prisa, o /buscar y salgo a cazarte ayudas nuevas.`)
 })
 
 bot.onText(/^\/vincular(?:@\w+)?\s*$/i, (msg) => {
@@ -164,7 +164,7 @@ bot.onText(/^\/desvincular\b/, async (msg) => {
 async function requireUser(chatId) {
   const user = await getUser(chatId)
   if (!user) {
-    send(chatId, 'Primero vincula tu cuenta: <code>/vincular tu@email.com</code>')
+    send(chatId, 'Eh, eh. Antes preséntate: <code>/vincular tu@email.com</code> 🙂')
     return null
   }
   return user
@@ -181,7 +181,7 @@ bot.onText(/^\/hoy\b/, async (msg) => {
     const d = daysLeft(g.plazo_solicitud)
     return d !== null && d >= 0 && d <= 14 && g.status !== 'descartada'
   })
-  send(chatId, grantsMessage(`🔥 <b>Urgentes (≤ 14 días)</b> — ${urgent.length}`, urgent))
+  send(chatId, grantsMessage(`🔥 <b>Esto corre prisa</b> (≤ 14 días) — ${urgent.length}`, urgent))
 })
 
 bot.onText(/^\/pendientes\b/, async (msg) => {
@@ -191,7 +191,7 @@ bot.onText(/^\/pendientes\b/, async (msg) => {
   const { data } = await sb.from('grants').select('*')
     .eq('user_id', user.id).in('status', ACTIVE_STATUSES)
     .order('plazo_solicitud', { ascending: true, nullsFirst: false })
-  send(chatId, grantsMessage(`📋 <b>Convocatorias activas</b> — ${(data || []).length}`, data || []))
+  send(chatId, grantsMessage(`📋 <b>Lo que tienes entre manos</b> — ${(data || []).length}`, data || []))
 })
 
 bot.onText(/^\/resumen\b/, async (msg) => {
@@ -206,7 +206,7 @@ bot.onText(/^\/resumen\b/, async (msg) => {
     const d = daysLeft(g.plazo_solicitud)
     return d !== null && d >= 0 && d <= 14 && g.status !== 'descartada'
   }).length
-  const lines = [`📊 <b>Resumen</b> — ${grants.length} convocatorias`, '']
+  const lines = [`📊 <b>Así vas</b> — ${grants.length} convocatorias`, '']
   for (const [k, sm] of Object.entries(STATUS_META)) {
     if (by[k]) lines.push(`${sm.icon} ${sm.label}: <b>${by[k]}</b>`)
   }
@@ -224,14 +224,14 @@ bot.onText(/^\/buscar\b/, async (msg) => {
     .eq('user_id', user.id).eq('is_archived', false)
     .order('is_default', { ascending: false }).order('created_at')
   const org = (orgs || [])[0]
-  if (!org) return send(chatId, `No tienes ningún perfil de empresa. Crea uno en ${esc(APP_URL)}/organizations`)
+  if (!org) return send(chatId, `Aún no me has dicho a qué te dedicas. Créate un perfil aquí y sabré qué buscarte: ${esc(APP_URL)}/organizations`)
 
-  send(chatId, `🤖 Buscando convocatorias para <b>${esc(org.name)}</b>… (15-30s)`)
+  send(chatId, `🔎 Me voy a peinar la BDNS buscando algo para <b>${esc(org.name)}</b>. Dame 15-30s…`)
   try {
     const { data: existing } = await sb.from('grants').select('titulo').eq('user_id', user.id).eq('org_id', org.id)
     const existingTitles = (existing || []).map(g => g.titulo)
     const results = await searchGrantsForProfile(org, existingTitles)
-    if (!results.length) return send(chatId, '🤷 No encontré convocatorias abiertas que encajen ahora mismo.')
+    if (!results.length) return send(chatId, '🤷 Hoy no hay pesca: nada nuevo que te encaje ahora mismo. Volveré a intentarlo.')
 
     let saved = 0
     for (const r of results.slice(0, 8)) {
@@ -250,10 +250,10 @@ bot.onText(/^\/buscar\b/, async (msg) => {
     const top = results.slice(0, 5).map(r =>
       `<b>${esc(r.titulo)}</b>\n${esc(r.organismo || '')} · match ${r.matchScore || '?'}\n${deadlineLabel(r.plazo_solicitud)}`
     ).join('\n\n')
-    send(chatId, `✨ <b>${results.length} encontradas</b> (${saved} guardadas en tu cuenta):\n\n${top}\n\nRevísalas en ${esc(APP_URL)}/dashboard`)
+    send(chatId, `✨ ¡Mira lo que te traigo! <b>${results.length}</b>, y ya te he guardado ${saved} en el panel:\n\n${top}\n\nLas tienes en ${esc(APP_URL)}/dashboard`)
   } catch (e) {
     console.error('[/buscar]', e)
-    send(chatId, '❌ Error al buscar. Inténtalo de nuevo más tarde.')
+    send(chatId, '❌ Se me ha atascado la búsqueda. Prueba otra vez en un rato.')
   }
 })
 
@@ -314,8 +314,9 @@ async function runDeadlineAlerts() {
       if (already) continue
       try {
         await send(user.telegram_id,
-          `⏰ <b>Aviso de plazo</b> — quedan <b>${d} día${d === 1 ? '' : 's'}</b>\n\n${grantLine(g)}` +
-          (g.url ? `\n\n🔗 ${esc(g.url)}` : ''))
+          `⏰ Que se te echa el tiempo encima: quedan <b>${d} día${d === 1 ? '' : 's'}</b>.\n\n${grantLine(g)}` +
+          (g.url ? `\n\n🔗 ${esc(g.url)}` : '') +
+          `\n\nLuego no digas que nadie te avisó. 😏`)
         await sb.from('alerts_sent').insert({
           grant_id: g.id, user_id: user.id, channel: 'telegram', days_before: d,
         })

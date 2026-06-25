@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     .from('convocatorias_publicas')
     .select('*')
     .eq('abierto', true)
+    .not('fecha_fin', 'is', null)
     .gte('fecha_fin', today)
     .or(`nivel1.eq.ESTATAL,ccaa.eq.${(org as Organization).ccaa}`)
     .order('fecha_fin', { ascending: true })

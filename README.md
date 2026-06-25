@@ -57,13 +57,31 @@ convocatorias/
 
 ## Variables de entorno necesarias
 ```
+# Web (Vercel)
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-ANTHROPIC_API_KEY
-TELEGRAM_BOT_TOKEN
+ANTHROPIC_API_KEY            # /api/grants/analyze y /api/search
 NEXT_PUBLIC_APP_URL
+
+# Bot + Worker (Railway) — además de las dos NEXT_PUBLIC_SUPABASE_*
+SUPABASE_SERVICE_ROLE_KEY   # acceso de servidor (salta RLS) — NUNCA en el navegador
+TELEGRAM_BOT_TOKEN          # bot de Telegram + envío del digest
+RESEND_API_KEY              # email del digest (opcional; sin él, solo Telegram)
+DIGEST_FROM                 # remitente, p.ej. "Convocatorias <hola@tudominio.es>"
 ```
+
+## Componentes y despliegue
+- **Web** (`/app`, `/lib`) → Vercel. Raíz del repo = raíz de la app Next.js.
+- **Bot de Telegram** (`/bot`) → Railway · Root `bot` · `npm start`. Vinculación de cuenta, comandos y alertas de plazo (cron diario).
+- **Worker** (`/worker`) → Railway · Root `worker` · `npm start`. Orquesta:
+  - **Ingesta BDNS** (`ingest-bdns.js`): catálogo `convocatorias_publicas`, sync incremental diario.
+  - **Digest semanal** (`digest.js`): convocatorias que encajan con cada perfil → Telegram + email (Resend). Lunes 08:00.
+  - Pruebas locales sin BD: `npm run ingest:dry`, `npm run digest:sample`.
+
+## Migraciones (ejecutar en orden en el SQL Editor de Supabase)
+1. `001_schema.sql` — esquema base (usuarios, perfiles, convocatorias…).
+2. `002_bdns_catalogo.sql` — catálogo público BDNS + estado de sync.
+3. `003_digest.sql` — control de envíos del digest.
 
 ## Coste estimado
 - Supabase: gratis

@@ -53,7 +53,9 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   const reasons: string[] = []
 
   // ── Filtros duros ──
-  const open = !!c.abierto && (!c.fecha_fin || c.fecha_fin >= todayISO)
+  // Exigimos plazo de solicitud REAL (fecha_fin): así descartamos concesiones
+  // directas y convenios nominativos, que no son ayudas en concurrencia.
+  const open = !!c.abierto && !!c.fecha_fin && c.fecha_fin >= todayISO
   if (!open) return { match: false, score: 0, reasons: [] }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'
@@ -108,7 +110,7 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
 // ── Formateo e importación a grants ────────────────────────────
 export function formatEuro(n: number | null | undefined): string {
   if (n == null) return ''
-  return new Intl.NumberFormat('es-ES').format(n) + ' €'
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €'
 }
 
 function ambitoFromNivel(nivel1: string | null): GrantAmbito {
