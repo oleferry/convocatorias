@@ -407,9 +407,9 @@ function StatsStrip({ grants, activeOrgId }: { grants: Grant[]; activeOrgId: str
 }
 
 // ─── DETAIL PANEL (slide-in) ──────────────────────────────────────────────────
-function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange }: {
+function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange, onMemoria }: {
   grant: Grant; org?: Organization; onClose: () => void; onEdit: () => void
-  onDelete: () => void; onStatusChange: (s: GrantStatus) => void
+  onDelete: () => void; onStatusChange: (s: GrantStatus) => void; onMemoria: () => void
 }) {
   const days = daysLeft(grant.plazo_solicitud)
   const u = urgency(days)
@@ -461,6 +461,14 @@ function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange }: 
 
         {/* Body */}
         <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 22, flex: 1 }}>
+          <button onClick={onMemoria} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '12px 16px', borderRadius: 10, border: `1px solid ${T.purple}33`, cursor: 'pointer',
+            background: T.purpleSoft, color: T.purple, fontSize: 14, fontWeight: 700,
+          }}>
+            {grant.memoria ? '📄 Ver memoria (IA)' : '✨ Prepárame una memoria con IA'}
+          </button>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {grant.importe_max && (
               <div style={{ padding: '14px 16px', background: T.bg, borderRadius: 10 }}>
@@ -905,6 +913,64 @@ function DiscoveryPanel({ orgs, activeOrg, existingGrants, onAddGrant, onClose }
   )
 }
 
+// ─── MEMORIA MODAL ────────────────────────────────────────────────────────────
+function MemoriaModal({ state, onClose, onRegenerate }: {
+  state: { loading: boolean; text: string; error: string }
+  onClose: () => void; onRegenerate: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+
+  function copy() {
+    navigator.clipboard.writeText(state.text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) })
+  }
+  function download() {
+    const blob = new Blob([state.text], { type: 'text/markdown;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'memoria.md'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  return (
+    <div>
+      <div style={{ padding: '20px 24px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18, color: T.ink, fontFamily: FONT_DISPLAY }}>✨ Memoria — borrador</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: T.inkLight }}>Generada con IA. Revísala y complétala antes de presentarla.</p>
+        </div>
+        <button onClick={onClose} style={{ background: T.bg, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 16, color: T.inkLight }}>×</button>
+      </div>
+
+      <div style={{ padding: '20px 24px', minHeight: 200 }}>
+        {state.loading ? (
+          <div style={{ textAlign: 'center', padding: '48px 0', color: T.inkLight }}>
+            <div style={{ fontSize: 34, marginBottom: 12 }}>🐾</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Redactando tu memoria…</div>
+            <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 4 }}>Suele tardar 10-20 segundos</div>
+          </div>
+        ) : state.error ? (
+          <div style={{ padding: 16, background: T.redSoft, borderRadius: 8, color: T.red, fontSize: 14 }}>{state.error}</div>
+        ) : (
+          <div style={{
+            whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.7, color: T.inkMid,
+            fontFamily: "'Inter', sans-serif", background: T.bg, border: `1px solid ${T.border}`,
+            borderRadius: 10, padding: '18px 20px', maxHeight: '58vh', overflowY: 'auto',
+          }}>{state.text}</div>
+        )}
+      </div>
+
+      {!state.loading && !state.error && (
+        <div style={{ padding: '0 24px 22px', display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <button onClick={onRegenerate} style={{ padding: '9px 16px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'none', color: T.inkMid, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>🔄 Regenerar</button>
+          <button onClick={download} style={{ padding: '9px 16px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'none', color: T.navy, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⬇ Descargar .md</button>
+          <button onClick={copy} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: T.gold, color: T.ink, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{copied ? '✓ Copiado' : 'Copiar'}</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [grants, setGrants] = useState<Grant[]>([])
@@ -921,6 +987,7 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [loadingSug, setLoadingSug] = useState(false)
   const [savedSug, setSavedSug] = useState<Set<string>>(new Set())
+  const [memoria, setMemoria] = useState<{ open: boolean; loading: boolean; text: string; error: string } | null>(null)
   const router = useRouter()
   const sb = createClient()
 
@@ -1004,6 +1071,26 @@ export default function Dashboard() {
   useEffect(() => {
     if (mode === 'suggestions' && activeOrgId) loadSuggestions(activeOrgId)
   }, [mode, activeOrgId, loadSuggestions])
+
+  async function runMemoria(grantId: string) {
+    setMemoria({ open: true, loading: true, text: '', error: '' })
+    try {
+      const res = await fetch('/api/memoria', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grantId }) })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Error')
+      setMemoria({ open: true, loading: false, text: data.memoria, error: '' })
+      setGrants(gs => gs.map(x => x.id === grantId ? { ...x, memoria: data.memoria } : x))
+    } catch (e: any) {
+      setMemoria({ open: true, loading: false, text: '', error: e?.message || 'No se pudo generar la memoria.' })
+    }
+  }
+
+  function handleMemoria() {
+    if (!selected) return
+    const g = grants.find(x => x.id === selected.id) || selected
+    if (g.memoria) setMemoria({ open: true, loading: false, text: g.memoria, error: '' })
+    else runMemoria(g.id)
+  }
 
   async function handleSaveSuggestion(c: any) {
     const grant = publicToGrant(c, activeOrgId, c.matchReason)
@@ -1138,6 +1225,7 @@ export default function Dashboard() {
           onEdit={() => setModal('edit')}
           onDelete={handleDelete}
           onStatusChange={handleStatusChange}
+          onMemoria={handleMemoria}
         />
       )}
 
@@ -1157,6 +1245,12 @@ export default function Dashboard() {
         <Modal onClose={() => setModal(null)} wide>
           <DiscoveryPanel orgs={orgs} activeOrg={activeOrg} existingGrants={grants}
             onAddGrant={handleAddFromDiscovery} onClose={() => setModal(null)} />
+        </Modal>
+      )}
+      {memoria?.open && (
+        <Modal onClose={() => setMemoria(null)} wide>
+          <MemoriaModal state={memoria} onClose={() => setMemoria(null)}
+            onRegenerate={() => selected && runMemoria(selected.id)} />
         </Modal>
       )}
     </div>

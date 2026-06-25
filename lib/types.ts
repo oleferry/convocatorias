@@ -58,6 +58,8 @@ export interface Grant {
   auto_found: boolean
   match_score?: number
   match_reason?: string
+  memoria?: string
+  memoria_updated_at?: string
   created_at: string
   updated_at: string
 }

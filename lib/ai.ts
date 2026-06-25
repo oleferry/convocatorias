@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { Organization } from './types'
+import type { Organization, Grant } from './types'
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -46,4 +46,57 @@ Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`, true
 
   try { return extractJSON(text.replace(/```json|```/g,'').trim(), '[') }
   catch { return [] }
+}
+
+// ─── MEMORIA v1 ───────────────────────────────────────────────────────────────
+// Borrador de memoria técnica/descriptiva para solicitar la ayuda. Tono PROFESIONAL
+// (es un documento oficial, no la voz de marca). Devuelve Markdown.
+export async function generateMemoria(grant: Grant, org: Organization | null) {
+  const sys = `Eres un consultor experto en la redacción de memorias técnicas y descriptivas para solicitudes de subvenciones, ayudas, concursos y premios en España.
+Redacta un BORRADOR de memoria en español, claro, profesional y bien estructurado en Markdown, listo para que el solicitante lo revise, complete y ajuste.
+Reglas:
+- No inventes cifras económicas, fechas internas ni datos de la entidad que no te den. Donde falte información usa marcadores entre corchetes, p.ej. [completar: presupuesto detallado].
+- Adapta el contenido a la convocatoria concreta y al perfil de la entidad.
+- Sé concreto y útil; evita relleno y frases vacías.
+- No incluyas comentarios tuyos fuera de la memoria.`
+
+  const u = `Redacta el borrador de memoria para esta convocatoria y esta entidad.
+
+## Convocatoria
+- Título: ${grant.titulo}
+- Organismo: ${grant.organismo || '—'}
+- Tipo: ${grant.tipo}
+- Importe máximo: ${grant.importe_max || '—'}
+- Plazo de solicitud: ${grant.plazo_solicitud || '—'}
+- Objeto / resumen: ${grant.resumen || '—'}
+- Elegibilidad: ${grant.elegibilidad || '—'}
+- Requisitos: ${grant.requisitos || '—'}
+
+## Entidad solicitante
+- Nombre: ${org?.name || '[completar: nombre de la entidad]'}
+- Tipo de entidad: ${org?.tipo_entidad || '—'}
+- Ubicación: ${org?.ccaa || '—'}${org?.municipio ? ` (${org.municipio})` : ''}
+- CNAE: ${org?.cnae || '—'}${org?.cnae_desc ? ` — ${org.cnae_desc}` : ''}
+- Actividad: ${org?.actividad || '—'}
+- Empleados: ${org?.empleados ?? '—'}
+- Palabras clave: ${org?.keywords || '—'}
+
+Estructura:
+1. Título del proyecto
+2. Resumen ejecutivo (objeto de la solicitud)
+3. Entidad solicitante
+4. Descripción del proyecto / actuación
+5. Objetivos
+6. Encaje con la convocatoria (cómo cumple requisitos y criterios de elegibilidad)
+7. Presupuesto orientativo (con marcadores)
+8. Cronograma estimado
+9. Impacto y resultados esperados
+
+Devuelve SOLO la memoria en Markdown.`
+
+  const r = await ai.messages.create({
+    model: 'claude-sonnet-4-6', max_tokens: 3000, system: sys,
+    messages: [{ role: 'user', content: u }],
+  })
+  return (r.content as any[]).map(b => (b.type === 'text' ? b.text : '')).join('\n').trim()
 }
