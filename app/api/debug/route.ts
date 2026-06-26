@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { createAdminSupabase } from '@/lib/supabase-server'
 import { matchGrant, type PublicGrantRow } from '@/lib/matching'
 import type { Organization } from '@/lib/types'
@@ -31,5 +32,15 @@ export async function GET() {
     for (const x of cand) if (matchGrant(x, org, today).match) matches++
     matchInfo = { org: (org as any).name, ccaa: org.ccaa, cnae: org.cnae, bdnsQ: (bdns.data || []).length, radarQ: (radar.data || []).length, pool: cand.length, matches, bdnsErr: bdns.error?.message, radarErr: radar.error?.message }
   }
-  return NextResponse.json({ total, fuentes, futureBdns, orgsCount: orgs?.length || 0, matchInfo })
+  // Prueba con la clave ANON (sin sesión) → simula el rol público.
+  // Si esto lee filas, RLS permite lectura no-service; si da 0, RLS la bloquea.
+  let anonTest: any = { url: !!process.env.NEXT_PUBLIC_SUPABASE_URL, anonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY }
+  try {
+    const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+    const { count, error } = await anon.from('convocatorias_publicas').select('*', { count: 'exact', head: true })
+    anonTest.count = count
+    anonTest.error = error?.message
+  } catch (e: any) { anonTest.exception = e.message }
+
+  return NextResponse.json({ total, fuentes, futureBdns, orgsCount: orgs?.length || 0, matchInfo, anonTest })
 }
