@@ -20,18 +20,20 @@ export async function GET(req: NextRequest) {
   if (!org) return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 })
 
   const today = new Date().toISOString().slice(0, 10)
+  const ccaa = (org as Organization).ccaa
 
-  // Candidatas: abiertas, con plazo futuro, estatales o de la CCAA del perfil.
-  const { data: candidates, error } = await supabase
-    .from('convocatorias_publicas')
-    .select('*')
-    .eq('abierto', true)
-    .not('fecha_fin', 'is', null)
-    .gte('fecha_fin', today)
-    .or(`nivel1.eq.ESTATAL,ccaa.eq.${(org as Organization).ccaa}`)
-    .order('fecha_fin', { ascending: true })
-    .limit(500)
-  if (error) return NextResponse.json({ error: error.message, suggestions: [] }, { status: 500 })
+  // 1) BDNS: abiertas, con plazo futuro, estatales o de la CCAA del perfil.
+  // 2) Radar (privadas/europeas): siempre, sin exigir plazo.
+  const [bdns, radar] = await Promise.all([
+    supabase.from('convocatorias_publicas').select('*')
+      .eq('abierto', true).not('fecha_fin', 'is', null).gte('fecha_fin', today)
+      .or(`nivel1.eq.ESTATAL,ccaa.eq.${ccaa}`)
+      .order('fecha_fin', { ascending: true }).limit(400),
+    supabase.from('convocatorias_publicas').select('*')
+      .eq('abierto', true).neq('fuente', 'bdns').limit(100),
+  ])
+  if (bdns.error) return NextResponse.json({ error: bdns.error.message, suggestions: [] }, { status: 500 })
+  const candidates = [...(bdns.data || []), ...(radar.data || [])]
 
   // Excluir las que el usuario ya tiene guardadas (por codigo_bdns).
   const { data: saved } = await supabase

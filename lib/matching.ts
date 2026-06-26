@@ -23,6 +23,7 @@ export interface PublicGrantRow {
   abierto: boolean
   fecha_inicio: string | null
   fecha_fin: string | null
+  fuente?: string | null
 }
 
 export interface MatchResult { match: boolean; score: number; reasons: string[] }
@@ -53,9 +54,10 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   const reasons: string[] = []
 
   // ── Filtros duros ──
-  // Exigimos plazo de solicitud REAL (fecha_fin): así descartamos concesiones
-  // directas y convenios nominativos, que no son ayudas en concurrencia.
-  const open = !!c.abierto && !!c.fecha_fin && c.fecha_fin >= todayISO
+  // BDNS: exigimos plazo de solicitud REAL (descarta concesiones directas).
+  // Radar (privadas/europeas): son programas recurrentes sin plazo fijo aquí.
+  const isRadar = !!c.fuente && c.fuente !== 'bdns'
+  const open = !!c.abierto && (isRadar || (!!c.fecha_fin && c.fecha_fin >= todayISO))
   if (!open) return { match: false, score: 0, reasons: [] }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'
@@ -124,12 +126,14 @@ function ambitoFromNivel(nivel1: string | null): GrantAmbito {
 
 /** Construye el objeto grant a insertar al guardar una sugerencia. */
 export function publicToGrant(c: PublicGrantRow, orgId: string | null, matchReason?: string) {
+  const tipo = c.fuente === 'europea' ? 'europeo' : c.fuente === 'privada' ? 'privada' : 'publica'
+  const ambito: GrantAmbito = c.fuente === 'europea' ? 'europeo' : ambitoFromNivel(c.nivel1)
   return {
     org_id: orgId,
     titulo: c.titulo,
     organismo: c.organo || (c.nivel1 ? c.nivel1 : ''),
-    tipo: 'publica' as const,
-    ambito: ambitoFromNivel(c.nivel1),
+    tipo,
+    ambito,
     importe_max: formatEuro(c.presupuesto_total),
     plazo_solicitud: c.fecha_fin,
     fecha_publicacion: c.fecha_inicio,

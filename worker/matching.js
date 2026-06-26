@@ -26,8 +26,9 @@ function tokens(s) {
 function matchGrant(c, org, todayISO) {
   const reasons = []
 
-  // Filtros duros: abierta, con plazo de solicitud REAL y futuro
-  const open = !!c.abierto && !!c.fecha_fin && c.fecha_fin >= todayISO
+  // Filtros duros: abierta. BDNS exige plazo real; el radar (privadas/europeas) no.
+  const isRadar = !!c.fuente && c.fuente !== 'bdns'
+  const open = !!c.abierto && (isRadar || (!!c.fecha_fin && c.fecha_fin >= todayISO))
   if (!open) return { match: false, score: 0, reasons: [] }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'

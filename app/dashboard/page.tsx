@@ -178,7 +178,7 @@ function SuggestionCard({ c, saved, onSave }: { c: any; saved: boolean; onSave: 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, color: T.inkLight, marginBottom: 4 }}>
-              🏛️ {c.organo || c.nivel1} · BDNS {c.codigo_bdns}
+              {c.fuente === 'privada' ? '🤝 Privada' : c.fuente === 'europea' ? '🇪🇺 Europa' : '🏛️'} {c.organo || c.nivel1}{(!c.fuente || c.fuente === 'bdns') ? ` · BDNS ${c.codigo_bdns}` : ''}
             </div>
             <div style={{ fontSize: 14.5, fontWeight: 700, color: T.ink, lineHeight: 1.35 }}>{c.titulo}</div>
           </div>
@@ -204,7 +204,7 @@ function SuggestionCard({ c, saved, onSave }: { c: any; saved: boolean; onSave: 
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: u.color }}>
-            {c.fecha_fin ? (u.tier <= 0 ? 'Vencida' : `Hasta ${new Date(c.fecha_fin).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} · ${days}d`) : 'Sin plazo'}
+            {c.fecha_fin ? (u.tier <= 0 ? 'Vencida' : `Hasta ${new Date(c.fecha_fin).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} · ${days}d`) : (c.fuente && c.fuente !== 'bdns' ? '🔁 Consulta el plazo en la web' : 'Sin plazo')}
           </span>
           {c.bases_url && <a href={c.bases_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.navy, textDecoration: 'none', fontWeight: 600 }}>🔗 Bases</a>}
           <div style={{ flex: 1 }} />
