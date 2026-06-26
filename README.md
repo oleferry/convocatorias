@@ -82,6 +82,23 @@ DIGEST_FROM                 # remitente, p.ej. "Convocatorias <hola@tudominio.es
 1. `001_schema.sql` — esquema base (usuarios, perfiles, convocatorias…).
 2. `002_bdns_catalogo.sql` — catálogo público BDNS + estado de sync.
 3. `003_digest.sql` — control de envíos del digest.
+4. `004_memoria.sql` — columna de memoria en grants.
+5. `005_telegram_link.sql` — vinculación segura de Telegram.
+6. `006_catalogos.sql` — CNAE múltiple + provincia en perfiles.
+7. `007_radar.sql` — columna `fuente` (bdns / privada / europea).
+
+## Crons (Vercel) — funcionan sin Railway
+Definidos en `vercel.json`. Necesitan `SUPABASE_SERVICE_ROLE_KEY` en Vercel.
+- **`/api/cron/ingest`** (diario 06:00): ingesta BDNS al catálogo + refresco del radar (privadas + europeas reales del EU Funding Portal).
+- **`/api/cron/digest`** (lunes 07:00): digest semanal por usuario (Telegram + email Resend).
+- **`/api/cron/radar`**: disparo manual del radar.
+- Todos se pueden lanzar a mano: `https://TU_DOMINIO/api/cron/<ruta>?key=CRON_SECRET`.
+
+## ✅ Activación (checklist)
+1. Supabase → SQL Editor → ejecutar migraciones 001→007.
+2. Vercel → Environment Variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_USERNAME`, `NEXT_PUBLIC_APP_URL`, y para el digest `TELEGRAM_BOT_TOKEN` + `RESEND_API_KEY` + `DIGEST_FROM`; opcional `CRON_SECRET`. Redeploy.
+3. Dispara una vez `/api/cron/ingest?key=...` y `/api/cron/radar?key=...` → el catálogo se llena y "Sugeridas" muestra BDNS + privadas + europeas.
+4. (Solo el bot de Telegram —avisos de plazo y "pégame un link"— necesita Railway, Root `bot`, `npm start`.)
 
 ## Coste estimado
 - Supabase: gratis
