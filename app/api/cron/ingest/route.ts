@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabase } from '@/lib/supabase-server'
 import { syncBdns } from '@/lib/bdns-sync'
+import { syncRadar } from '@/lib/radar-sync'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -24,7 +25,10 @@ export async function GET(req: NextRequest) {
     const sb = createAdminSupabase()
     const max = Number(req.nextUrl.searchParams.get('max') || 120)
     const result = await syncBdns(sb, { maxDetails: max })
-    return NextResponse.json({ ok: true, ...result })
+    // De paso, refrescamos el radar (privados + europeos) — barato e idempotente
+    let radar: any = null
+    try { radar = await syncRadar(sb) } catch (e: any) { console.warn('[cron/ingest] radar:', e?.message) }
+    return NextResponse.json({ ok: true, ...result, radar })
   } catch (e: any) {
     console.error('[cron/ingest]', e)
     return NextResponse.json({ error: e?.message || 'Error en la ingesta' }, { status: 500 })
