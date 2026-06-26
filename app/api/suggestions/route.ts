@@ -4,6 +4,8 @@ import { matchGrant, type PublicGrantRow } from '@/lib/matching'
 import type { Organization } from '@/lib/types'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // GET /api/suggestions?orgId=...  → convocatorias públicas (BDNS) que encajan
 // con el perfil activo y que el usuario aún no tiene guardadas.

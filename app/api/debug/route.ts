@@ -6,6 +6,8 @@ import type { Organization } from '@/lib/types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // Diagnóstico temporal (service role, salta RLS). BORRAR luego.
 export async function GET() {

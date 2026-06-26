@@ -5,6 +5,8 @@ import type { Organization } from '@/lib/types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // GET /api/cron/digest → digest semanal por usuario (Telegram + email Resend).
 // Sin Railway. Protegido por CRON_SECRET. Envío gracioso: salta el canal sin clave.
