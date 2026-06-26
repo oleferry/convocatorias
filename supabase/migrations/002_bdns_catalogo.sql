@@ -69,9 +69,13 @@ create trigger convpub_updated_at before update on public.convocatorias_publicas
 -- ── Row Level Security ─────────────────────────────────────────
 -- Catálogo: cualquier usuario autenticado puede LEER. La escritura la
 -- hace solo el worker con la service_role key (que salta RLS).
+-- Datos públicos: legible por cualquiera (anon + authenticated). La escritura
+-- sigue siendo solo de la service_role (que salta RLS). Sin 'to authenticated'
+-- para ser robusto ante rotaciones de clave JWT.
 alter table public.convocatorias_publicas enable row level security;
+drop policy if exists "convpub_read" on public.convocatorias_publicas;
 create policy "convpub_read" on public.convocatorias_publicas
-  for select to authenticated using (true);
+  for select using (true);
 
 -- Estado de sync: sin políticas → solo accesible con service_role.
 alter table public.bdns_sync_state enable row level security;
