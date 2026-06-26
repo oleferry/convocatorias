@@ -26,11 +26,11 @@ export async function GET(req: NextRequest) {
   // 2) Radar (privadas/europeas): siempre, sin exigir plazo.
   const [bdns, radar] = await Promise.all([
     supabase.from('convocatorias_publicas').select('*')
-      .eq('abierto', true).not('fecha_fin', 'is', null).gte('fecha_fin', today)
+      .not('fecha_fin', 'is', null).gte('fecha_fin', today)
       .or(`nivel1.eq.ESTATAL,ccaa.eq.${ccaa}`)
       .order('fecha_fin', { ascending: true }).limit(400),
     supabase.from('convocatorias_publicas').select('*')
-      .eq('abierto', true).neq('fuente', 'bdns').limit(100),
+      .neq('fuente', 'bdns').limit(150),
   ])
   if (bdns.error) return NextResponse.json({ error: bdns.error.message, suggestions: [] }, { status: 500 })
   const candidates = [...(bdns.data || []), ...(radar.data || [])]

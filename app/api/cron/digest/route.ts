@@ -100,9 +100,9 @@ async function pickForUser(sb: any, user: any, today: string) {
   const byCode = new Map<string, any>()
   for (const org of orgs as Organization[]) {
     const [bdns, radar] = await Promise.all([
-      sb.from('convocatorias_publicas').select('*').eq('abierto', true).not('fecha_fin', 'is', null).gte('fecha_fin', today)
+      sb.from('convocatorias_publicas').select('*').not('fecha_fin', 'is', null).gte('fecha_fin', today)
         .or(`nivel1.eq.ESTATAL,ccaa.eq.${org.ccaa}`).order('fecha_fin', { ascending: true }).limit(300),
-      sb.from('convocatorias_publicas').select('*').eq('abierto', true).neq('fuente', 'bdns').limit(100),
+      sb.from('convocatorias_publicas').select('*').neq('fuente', 'bdns').limit(150),
     ])
     for (const c of [...(bdns.data || []), ...(radar.data || [])] as PublicGrantRow[]) {
       if (skip.has(c.codigo_bdns)) continue

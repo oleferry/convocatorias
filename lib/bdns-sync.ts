@@ -49,9 +49,11 @@ export async function syncBdns(sb: any, opts: { sinceDays?: number; maxDetails?:
     await sleep(20)
   }
 
-  // 3) Upsert
-  for (let i = 0; i < rows.length; i += 200) {
-    const { error } = await sb.from('convocatorias_publicas').upsert(rows.slice(i, i + 200), { onConflict: 'codigo_bdns' })
+  // 3) Upsert — solo lo que tiene plazo de solicitud futuro (lo demás no aporta)
+  const tISO = ymd(today)
+  const useful = rows.filter(r => r.fecha_fin && r.fecha_fin >= tISO)
+  for (let i = 0; i < useful.length; i += 200) {
+    const { error } = await sb.from('convocatorias_publicas').upsert(useful.slice(i, i + 200), { onConflict: 'codigo_bdns' })
     if (error) throw new Error('upsert: ' + error.message)
   }
 

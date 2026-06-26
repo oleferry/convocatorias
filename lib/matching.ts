@@ -54,10 +54,11 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   const reasons: string[] = []
 
   // ── Filtros duros ──
-  // BDNS: exigimos plazo de solicitud REAL (descarta concesiones directas).
-  // Radar (privadas/europeas): son programas recurrentes sin plazo fijo aquí.
+  // El flag 'abierto' de la BDNS es poco fiable (casi siempre false), así que
+  // usamos el PLAZO de solicitud: si fecha_fin es futura, aún se puede pedir.
+  // Radar (privadas/europeas): programas recurrentes sin plazo fijo aquí.
   const isRadar = !!c.fuente && c.fuente !== 'bdns'
-  const open = !!c.abierto && (isRadar || (!!c.fecha_fin && c.fecha_fin >= todayISO))
+  const open = isRadar || (!!c.fecha_fin && c.fecha_fin >= todayISO)
   if (!open) return { match: false, score: 0, reasons: [] }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'
