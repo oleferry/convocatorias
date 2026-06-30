@@ -73,11 +73,26 @@ function matchGrant(c, org, todayISO) {
   if (!open) return { match: false, score: 0, reasons: [] }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'
-  const regionOk = estatal || (!!c.ccaa && c.ccaa === org.ccaa)
-  if (!regionOk) return { match: false, score: 0, reasons: [] }
-  reasons.push(estatal ? 'Ámbito estatal' : `Tu CCAA (${org.ccaa})`)
-
   let score = 10
+
+  if (estatal) {
+    reasons.push('Ámbito estatal')
+  } else {
+    if (!c.ccaa || c.ccaa !== org.ccaa) return { match: false, score: 0, reasons: [] }
+    const prov = strip(org.provincia || ''), muni = strip(org.municipio || '')
+    const hayLoc = strip([c.organo, ...((c.regiones) || [])].join(' '))
+    const nuts3 = ((c.regiones) || []).some(r => /\bES\d{3}\b/i.test(r))
+    const localOrg = /ayuntamiento|diputaci|comarca|municipal|concejo|cabildo|consell insular|mancomunidad/.test(hayLoc)
+    const provinceSpecific = nuts3 || localOrg
+    if (provinceSpecific && (prov || muni)) {
+      const muniHit = !!muni && hayLoc.includes(muni)
+      const provHit = !!prov && hayLoc.includes(prov)
+      if (!muniHit && !provHit) return { match: false, score: 0, reasons: [] }
+      score += 15; reasons.push(muniHit ? `Tu municipio (${org.municipio})` : `Tu provincia (${org.provincia})`)
+    } else {
+      reasons.push(`Tu CCAA (${org.ccaa})`)
+    }
+  }
 
   const divs = new Set(), letters = new Set()
   const addCnae = v => { const d = String(v).replace(/\D/g, '').slice(0, 2); if (d) { divs.add(d); const L = sectionLetter(d); if (L) letters.add(L) } }

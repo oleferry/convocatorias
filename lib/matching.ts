@@ -116,11 +116,28 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   if (!open) return { match: false, score: 0, reasons: [] }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'
-  const regionOk = estatal || (!!c.ccaa && c.ccaa === org.ccaa)
-  if (!regionOk) return { match: false, score: 0, reasons: [] }
-  reasons.push(estatal ? 'Ámbito estatal' : `Tu CCAA (${org.ccaa})`)
-
   let score = 10 // base por superar región + abierta
+
+  if (estatal) {
+    reasons.push('Ámbito estatal')
+  } else {
+    // Sub-estatal: primero la CCAA debe coincidir.
+    if (!c.ccaa || c.ccaa !== org.ccaa) return { match: false, score: 0, reasons: [] }
+    // ¿La ayuda está acotada a una provincia/localidad concreta?
+    const prov = strip(org.provincia || ''); const muni = strip(org.municipio || '')
+    const hayLoc = strip([c.organo, ...((c.regiones as any) || [])].join(' '))
+    const nuts3 = ((c.regiones as any) || []).some((r: string) => /\bES\d{3}\b/i.test(r))
+    const localOrg = /ayuntamiento|diputaci|comarca|municipal|concejo|cabildo|consell insular|mancomunidad/.test(hayLoc)
+    const provinceSpecific = nuts3 || localOrg
+    if (provinceSpecific && (prov || muni)) {
+      const muniHit = !!muni && hayLoc.includes(muni)
+      const provHit = !!prov && hayLoc.includes(prov)
+      if (!muniHit && !provHit) return { match: false, score: 0, reasons: [] } // local de OTRA zona
+      score += 15; reasons.push(muniHit ? `Tu municipio (${org.municipio})` : `Tu provincia (${org.provincia})`)
+    } else {
+      reasons.push(`Tu CCAA (${org.ccaa})`)
+    }
+  }
 
   // ── Divisiones y letras de sección del perfil (CNAE + IAE) ──
   const divs = new Set<string>()
