@@ -19,7 +19,8 @@ Devuelve SOLO un array JSON sin backticks, máximo 6:
   const user = `Perfil: ${o.tipo_entidad} "${o.name}", CCAA ${o.ccaa}, CNAE ${o.cnae} (${o.cnae_desc}), actividad ${o.actividad}.`
   let raw = '', types: string[] = [], err: string | null = null
   try {
-    const r = await ai.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: user }], tools: [{ type: 'web_search_20250305', name: 'web_search' } as any] })
+    const body: any = { model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: user }], tools: [{ type: 'web_search_20250305', name: 'web_search' }] }
+    const r = await ai.messages.create(body)
     types = (r.content as any[]).map(b => b.type)
     raw = (r.content as any[]).map(b => b.type === 'text' ? b.text : '').join('\n')
   } catch (e: any) { err = e?.message || String(e) }
