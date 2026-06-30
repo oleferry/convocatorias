@@ -48,6 +48,28 @@ Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`, true
   catch { return [] }
 }
 
+// ─── DESCUBRIMIENTO DE PRIVADOS (radar IA) ────────────────────────────────────
+// Busca en la web premios/concursos/ayudas PRIVADAS reales para el sector del
+// perfil. Devuelve un array para volcar al catálogo (fuente='privada').
+export async function discoverPrivateGrants(org: Organization): Promise<any[]> {
+  const sys = `Eres un experto en ayudas, premios y concursos PRIVADOS en España: fundaciones (la Caixa, BBVA, Repsol, Botín…), bancos, Cámaras de Comercio, grandes empresas y asociaciones sectoriales/patronales.
+Busca en la web programas PRIVADOS (NO públicos del BOE/BDNS) REALES y ACTUALES que encajen con el perfil. Incluye premios y ayudas para COMERCIO y pyme tradicional y para el sector concreto del perfil, no solo startups tecnológicas.
+Devuelve SOLO un array JSON sin backticks, máximo 6, con programas reales y su web oficial:
+[{"nombre":"","entidad":"","finalidad":"2-3 frases ricas en palabras clave del sector y la actividad","beneficiarios":["..."],"ambito":"nacional|autonómico","url":"https://web-oficial-real"}]
+No inventes programas ni URLs. Si no encuentras suficientes reales, devuelve menos.`
+  const user = `Perfil de la empresa:
+- Entidad: ${org.tipo_entidad} "${org.name}"
+- CCAA: ${org.ccaa}${org.municipio ? ` (${org.municipio})` : ''}
+- CNAE: ${org.cnae || '—'}${org.cnae_desc ? ` — ${org.cnae_desc}` : ''}
+- IAE: ${org.iae || '—'}${org.iae_desc ? ` — ${org.iae_desc}` : ''}
+- Actividad: ${org.actividad || '—'}
+- Keywords: ${org.keywords || '—'}
+
+Busca premios, concursos y ayudas PRIVADAS relevantes para este negocio.`
+  const text = await callAI(sys, user, true)
+  try { return extractJSON(text.replace(/```json|```/g, '').trim(), '[') } catch { return [] }
+}
+
 // ─── MEMORIA v1 ───────────────────────────────────────────────────────────────
 // Borrador de memoria técnica/descriptiva para solicitar la ayuda. Tono PROFESIONAL
 // (es un documento oficial, no la voz de marca). Devuelve Markdown.
