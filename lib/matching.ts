@@ -126,15 +126,16 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   } else {
     // Sub-estatal: primero la CCAA debe coincidir.
     if (!c.ccaa || c.ccaa !== org.ccaa) return { match: false, score: 0, reasons: [], tier: null }
-    // ¿La ayuda está acotada a una provincia/localidad concreta?
+    // Solo acotamos por zona cuando el ORGANISMO es claramente local (un
+    // ayuntamiento/diputación concreto). Las autonómicas (Consejería, ICECYL…)
+    // cubren toda la CCAA aunque en sus datos enumeren provincias, así que no se
+    // filtran por provincia/municipio.
+    const organoTxt = strip(c.organo || '')
     const prov = strip(org.provincia || ''); const muni = strip(org.municipio || '')
-    const hayLoc = strip([c.organo, ...((c.regiones as any) || [])].join(' '))
-    const nuts3 = ((c.regiones as any) || []).some((r: string) => /\bES\d{3}\b/i.test(r))
-    const localOrg = /ayuntamiento|diputaci|comarca|municipal|concejo|cabildo|consell insular|mancomunidad/.test(hayLoc)
-    const provinceSpecific = nuts3 || localOrg
-    if (provinceSpecific && (prov || muni)) {
-      const muniHit = !!muni && hayLoc.includes(muni)
-      const provHit = !!prov && hayLoc.includes(prov)
+    const localOrg = /ayuntamiento|diputaci|concejo\b|cabildo|consell insular|mancomunidad|comarca de/.test(organoTxt)
+    if (localOrg && (prov || muni)) {
+      const muniHit = !!muni && organoTxt.includes(muni)
+      const provHit = !!prov && organoTxt.includes(prov)
       if (!muniHit && !provHit) return { match: false, score: 0, reasons: [], tier: null } // local de OTRA zona
       score += 15; reasons.push(muniHit ? `Tu municipio (${org.municipio})` : `Tu provincia (${org.provincia})`)
     } else {
@@ -192,6 +193,19 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 
+// Resume el título oficial de la BDNS (un ladrillo tipo "Resolución de … por la
+// que se aprueba la convocatoria para la concesión de subvenciones destinadas a
+// X") y se queda con el núcleo: "Subvenciones destinadas a X".
+export function tituloCorto(t: string | null | undefined): string {
+  let s = (t || '').replace(/\s+/g, ' ').trim()
+  const m = s.match(/(subvenci\w*|ayudas?\b|becas?\b|premios?\b|l[ií]neas? de ayuda|bono\w*)[\s\S]*/i)
+  if (m) s = m[0].trim()
+  s = s.replace(/[\s,;.:]+$/, '')
+  if (s) s = s.charAt(0).toUpperCase() + s.slice(1)
+  if (s.length > 120) s = s.slice(0, 117).replace(/\s+\S*$/, '') + '…'
+  return s || (t || '')
+}
+
 // ── Formateo e importación a grants ────────────────────────────
 export function formatEuro(n: number | null | undefined): string {
   if (n == null) return ''
@@ -211,7 +225,7 @@ export function publicToGrant(c: PublicGrantRow, orgId: string | null, matchReas
   const ambito: GrantAmbito = c.fuente === 'europea' ? 'europeo' : ambitoFromNivel(c.nivel1)
   return {
     org_id: orgId,
-    titulo: c.titulo,
+    titulo: tituloCorto(c.titulo),
     organismo: c.organo || (c.nivel1 ? c.nivel1 : ''),
     tipo,
     ambito,

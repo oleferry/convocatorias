@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { Organization, Grant, GrantStatus } from '@/lib/types'
 import { STATUS_META, TYPE_META } from '@/lib/types'
 import { T, FONT, FONT_DISPLAY, daysLeft, urgency } from '@/lib/theme'
-import { publicToGrant, formatEuro } from '@/lib/matching'
+import { publicToGrant, formatEuro, tituloCorto } from '@/lib/matching'
 
 // Paleta de formularios derivada de los tokens de diseño (compatibilidad con el
 // código heredado de GrantForm / DiscoveryPanel).
@@ -180,7 +180,7 @@ function SuggestionCard({ c, saved, onSave }: { c: any; saved: boolean; onSave: 
             <div style={{ fontSize: 11, color: T.inkLight, marginBottom: 4 }}>
               {c.fuente === 'privada' ? '🤝 Privada' : c.fuente === 'europea' ? '🇪🇺 Europa' : '🏛️'} {c.organo || c.nivel1}{(!c.fuente || c.fuente === 'bdns') ? ` · BDNS ${c.codigo_bdns}` : ''}
             </div>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: T.ink, lineHeight: 1.35 }}>{c.titulo}</div>
+            <div title={c.titulo} style={{ fontSize: 14.5, fontWeight: 700, color: T.ink, lineHeight: 1.35 }}>{tituloCorto(c.titulo)}</div>
           </div>
           <div style={{ textAlign: 'center', minWidth: 46, flexShrink: 0 }}>
             <div style={{ fontSize: 20, fontWeight: 800, color: scoreColor, fontVariantNumeric: 'tabular-nums' }}>{c.matchScore}</div>
