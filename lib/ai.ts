@@ -10,8 +10,8 @@ function extractJSON(text: string, bracket: '{'|'[') {
   return JSON.parse(text.slice(s, e + 1))
 }
 
-async function callAI(system: string, user: string, search = false) {
-  const body: any = { model:'claude-sonnet-4-6', max_tokens:1500, system, messages:[{role:'user',content:user}] }
+async function callAI(system: string, user: string, search = false, maxTokens = 1500) {
+  const body: any = { model:'claude-sonnet-4-6', max_tokens:maxTokens, system, messages:[{role:'user',content:user}] }
   if (search) body.tools = [{ type:'web_search_20250305', name:'web_search' }]
   const r = await ai.messages.create(body)
   return (r.content as any[]).map(b => b.type==='text' ? b.text : '').join('\n')
@@ -54,8 +54,8 @@ Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`, true
 export async function discoverPrivateGrants(org: Organization): Promise<any[]> {
   const sys = `Eres un experto en ayudas, premios y concursos PRIVADOS en España: fundaciones (la Caixa, BBVA, Repsol, Botín…), bancos, Cámaras de Comercio, grandes empresas y asociaciones sectoriales/patronales.
 Busca en la web programas PRIVADOS (NO públicos del BOE/BDNS) REALES y ACTUALES que encajen con el perfil. Incluye premios y ayudas para COMERCIO y pyme tradicional y para el sector concreto del perfil, no solo startups tecnológicas.
-Devuelve SOLO un array JSON sin backticks, máximo 6, con programas reales y su web oficial:
-[{"nombre":"","entidad":"","finalidad":"2-3 frases ricas en palabras clave del sector y la actividad","beneficiarios":["..."],"ambito":"nacional|autonómico","url":"https://web-oficial-real"}]
+Devuelve SOLO un array JSON sin backticks ni texto alrededor, máximo 6, con programas reales y su web oficial:
+[{"nombre":"","entidad":"","finalidad":"1 frase breve (máx 180 caracteres) con palabras clave del sector","beneficiarios":["máx 3, breves"],"ambito":"nacional|autonómico","url":"https://web-oficial-real"}]
 No inventes programas ni URLs. Si no encuentras suficientes reales, devuelve menos.`
   const user = `Perfil de la empresa:
 - Entidad: ${org.tipo_entidad} "${org.name}"
@@ -66,8 +66,16 @@ No inventes programas ni URLs. Si no encuentras suficientes reales, devuelve men
 - Keywords: ${org.keywords || '—'}
 
 Busca premios, concursos y ayudas PRIVADAS relevantes para este negocio.`
-  const text = await callAI(sys, user, true)
-  try { return extractJSON(text.replace(/```json|```/g, '').trim(), '[') } catch { return [] }
+  const text = await callAI(sys, user, true, 4000)
+  const clean = text.replace(/```json|```/g, '').trim()
+  try { return extractJSON(clean, '[') } catch { /* puede venir truncado */ }
+  // Recuperación: rescata los objetos {...} completos aunque falte cerrar el array.
+  try {
+    const s = clean.indexOf('[')
+    const body = s === -1 ? clean : clean.slice(s + 1)
+    const objs = body.match(/\{[^{}]*\}/g) || []
+    return objs.map(o => { try { return JSON.parse(o) } catch { return null } }).filter(Boolean)
+  } catch { return [] }
 }
 
 // ─── MEMORIA v1 ───────────────────────────────────────────────────────────────
