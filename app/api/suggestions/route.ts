@@ -46,10 +46,14 @@ export async function GET(req: NextRequest) {
   for (const c of (candidates || []) as PublicGrantRow[]) {
     if (savedSet.has(c.codigo_bdns)) continue
     const m = matchGrant(c, org as Organization, today)
-    if (m.match) suggestions.push({ ...c, matchScore: m.score, matchReason: m.reasons.join(' · ') })
+    if (m.match) suggestions.push({ ...c, matchScore: m.score, matchReason: m.reasons.join(' · '), tier: m.tier })
   }
+  // Nivel 'sector' primero; dentro de cada nivel, por score y luego por plazo.
+  const rank = (t: string | null) => (t === 'sector' ? 0 : 1)
   suggestions.sort((a, b) =>
-    b.matchScore - a.matchScore || (a.fecha_fin || '').localeCompare(b.fecha_fin || ''))
+    rank(a.tier) - rank(b.tier) ||
+    b.matchScore - a.matchScore ||
+    (a.fecha_fin || '').localeCompare(b.fecha_fin || ''))
 
-  return NextResponse.json({ suggestions: suggestions.slice(0, 40) })
+  return NextResponse.json({ suggestions: suggestions.slice(0, 60) })
 }

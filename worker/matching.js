@@ -131,9 +131,8 @@ function matchGrant(c, org, todayISO) {
     if (kwHits > 0) { score += Math.min(30, kwHits * 12); reasons.push(`${kwHits} palabra(s) clave`) }
   }
 
-  // Gate ESTRICTO: exige sector (CNAE/IAE) o palabra clave de la actividad.
-  const match = sectorMatch || kwHits > 0
-  return { match, score: Math.min(100, score), reasons }
+  const tier = (sectorMatch || kwHits > 0) ? 'sector' : (benefMatch ? 'elegible' : null)
+  return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 
 function formatEuro(n) {

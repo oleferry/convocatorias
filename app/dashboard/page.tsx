@@ -1256,13 +1256,33 @@ export default function Dashboard() {
                 <div style={{ fontSize: 16, fontWeight: 700, color: T.inkLight, marginBottom: 8 }}>Sin sugerencias por ahora</div>
                 <div style={{ fontSize: 13 }}>No hay convocatorias públicas abiertas que encajen con este perfil. Afina el CNAE/keywords del perfil o vuelve más adelante.</div>
               </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
-                {suggestions.map(c => (
-                  <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} />
-                ))}
-              </div>
-            )}
+            ) : (() => {
+              const sector = suggestions.filter(c => c.tier !== 'elegible')
+              const elegibles = suggestions.filter(c => c.tier === 'elegible')
+              const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 } as React.CSSProperties
+              const head = (icon: string, txt: string, sub: string) => (
+                <div style={{ margin: '4px 0 12px' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: T.ink }}>{icon} {txt}</div>
+                  <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>{sub}</div>
+                </div>
+              )
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                  <div>
+                    {head('🎯', `Para tu sector (${sector.length})`, 'Afines a tu CNAE/IAE o a tu actividad.')}
+                    {sector.length === 0
+                      ? <div style={{ fontSize: 13, color: T.inkMuted, padding: '8px 0' }}>Ninguna específica de tu sector ahora mismo. Mira las de abajo: podrías optar igualmente.</div>
+                      : <div style={grid}>{sector.map(c => <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} />)}</div>}
+                  </div>
+                  {elegibles.length > 0 && (
+                    <div>
+                      {head('🤝', `También podrías optar (${elegibles.length})`, 'No son de tu sector, pero están abiertas a tu tipo de entidad y en tu zona.')}
+                      <div style={grid}>{elegibles.map(c => <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} />)}</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )}
       </main>

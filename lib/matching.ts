@@ -31,7 +31,10 @@ export interface PublicGrantRow {
   fuente?: string | null
 }
 
-export interface MatchResult { match: boolean; score: number; reasons: string[] }
+// tier: 'sector' = afín a tu CNAE/IAE/actividad · 'elegible' = abierta a tu tipo
+// de entidad (pyme/autónomo…) en tu zona, aunque no sea específica de tu sector.
+export type MatchTier = 'sector' | 'elegible'
+export interface MatchResult { match: boolean; score: number; reasons: string[]; tier: MatchTier | null }
 
 function strip(s: string): string {
   return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -113,7 +116,7 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   // PLAZO de solicitud. El radar (privadas/europeas) no trae plazo fijo aquí.
   const isRadar = !!c.fuente && c.fuente !== 'bdns'
   const open = isRadar || (!!c.fecha_fin && c.fecha_fin >= todayISO)
-  if (!open) return { match: false, score: 0, reasons: [] }
+  if (!open) return { match: false, score: 0, reasons: [], tier: null }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'
   let score = 10 // base por superar región + abierta
@@ -122,7 +125,7 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
     reasons.push('Ámbito estatal')
   } else {
     // Sub-estatal: primero la CCAA debe coincidir.
-    if (!c.ccaa || c.ccaa !== org.ccaa) return { match: false, score: 0, reasons: [] }
+    if (!c.ccaa || c.ccaa !== org.ccaa) return { match: false, score: 0, reasons: [], tier: null }
     // ¿La ayuda está acotada a una provincia/localidad concreta?
     const prov = strip(org.provincia || ''); const muni = strip(org.municipio || '')
     const hayLoc = strip([c.organo, ...((c.regiones as any) || [])].join(' '))
@@ -132,7 +135,7 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
     if (provinceSpecific && (prov || muni)) {
       const muniHit = !!muni && hayLoc.includes(muni)
       const provHit = !!prov && hayLoc.includes(prov)
-      if (!muniHit && !provHit) return { match: false, score: 0, reasons: [] } // local de OTRA zona
+      if (!muniHit && !provHit) return { match: false, score: 0, reasons: [], tier: null } // local de OTRA zona
       score += 15; reasons.push(muniHit ? `Tu municipio (${org.municipio})` : `Tu provincia (${org.provincia})`)
     } else {
       reasons.push(`Tu CCAA (${org.ccaa})`)
@@ -181,11 +184,12 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
     if (kwHits > 0) { score += Math.min(30, kwHits * 12); reasons.push(`${kwHits} palabra(s) clave`) }
   }
 
-  // Gate ESTRICTO: exige que coincida el SECTOR (CNAE/IAE) o una palabra clave de
-  // tu actividad. El tipo de beneficiario solo suma puntos —no basta por sí solo—,
-  // para que no se cuele toda ayuda genérica "abierta a pymes" ajena a tu sector.
-  const match = sectorMatch || kwHits > 0
-  return { match, score: Math.min(100, score), reasons }
+  // Dos niveles:
+  //  • 'sector'   → coincide tu CNAE/IAE o una palabra clave de tu actividad.
+  //  • 'elegible' → no es de tu sector, pero está abierta a tu tipo de entidad
+  //                 (pyme/autónomo…) y en tu zona: podrías optar igualmente.
+  const tier: MatchTier | null = (sectorMatch || kwHits > 0) ? 'sector' : (benefMatch ? 'elegible' : null)
+  return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 
 // ── Formateo e importación a grants ────────────────────────────
