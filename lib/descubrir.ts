@@ -12,6 +12,17 @@ function slug(s: string): string {
     .replace(/^https?:\/\//, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 64)
 }
 
+// Clave ESTABLE por nombre normalizado: quita "(NOA)", años, ediciones y palabras
+// vacías, y se queda con las primeras palabras significativas. Así el mismo
+// programa colapsa aunque la IA varíe la URL o el sufijo entre ejecuciones.
+function progKey(nombre: string): string {
+  const base = (nombre || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\(.*?\)/g, ' ')
+    .replace(/\b(19|20)\d{2}([\/-](19|20)?\d{2})?\b/g, ' ')
+    .replace(/\b([ivxlcdm]+|edici[oó]n|programa|premios?|linea|ayudas?|beca|becas|convocatoria|de|del|la|el|los|las|para|por|y|en|a|the)\b/gi, ' ')
+  return slug(base).split('-').filter(Boolean).slice(0, 6).join('-') || slug(nombre)
+}
+
 // Estampa el sector del perfil (división CNAE) para que la convocatoria privada
 // encaje en "Para tu sector" de ese tipo de negocio.
 function sectoresOf(org: any): { codigo: string; descripcion: string }[] {
@@ -23,8 +34,10 @@ function sectoresOf(org: any): { codigo: string; descripcion: string }[] {
   return out
 }
 
-export async function syncDescubrimiento(sb: any, opts: { max?: number } = {}): Promise<{ sectores: number; anadidas: number }> {
+export async function syncDescubrimiento(sb: any, opts: { max?: number; reset?: boolean } = {}): Promise<{ sectores: number; anadidas: number }> {
   const max = opts.max ?? 6
+  // Limpieza opcional de los privados descubiertos previos (para regenerar sin duplicados).
+  if (opts.reset) await sb.from('convocatorias_publicas').delete().like('codigo_bdns', 'priv-%')
   const { data: orgs } = await sb.from('organizations').select('*').eq('is_archived', false)
 
   // Deduplicar trabajo por sector + CCAA (no repetimos búsqueda por cada usuario).
@@ -42,10 +55,14 @@ export async function syncDescubrimiento(sb: any, opts: { max?: number } = {}): 
     try { items = await discoverPrivateGrants(o as Organization) } catch (e: any) { console.warn('[descubrir]', e?.message); continue }
     const sect = sectoresOf(o)
     const rows: any[] = []
+    const seenKeys = new Set<string>()
     for (const it of (items || [])) {
       if (!it || !it.url || !it.nombre) continue
+      const key = progKey(String(it.nombre))
+      if (seenKeys.has(key)) continue // dedup dentro del mismo lote
+      seenKeys.add(key)
       rows.push({
-        codigo_bdns: 'priv-' + slug(String(it.url || it.nombre)),
+        codigo_bdns: 'priv-' + key,
         titulo: String(it.nombre).slice(0, 300),
         organo: it.entidad || null,
         nivel1: it.ambito === 'autonómico' ? 'AUTONOMICA' : 'ESTATAL',

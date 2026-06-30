@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
   try {
     const sb = createAdminSupabase()
     const max = Number(req.nextUrl.searchParams.get('max') || 6)
-    const r = await syncDescubrimiento(sb, { max })
+    const reset = req.nextUrl.searchParams.get('reset') === '1'
+    const r = await syncDescubrimiento(sb, { max, reset })
     return NextResponse.json({ ok: true, ...r })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Error en el descubrimiento' }, { status: 500 })
