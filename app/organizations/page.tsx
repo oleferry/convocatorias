@@ -26,22 +26,24 @@ type MuniItem = { id: string; p: string; n: string }
 
 function useCatalogs() {
   const [cnae, setCnae] = useState<CnaeItem[]>([])
+  const [iae, setIae] = useState<CnaeItem[]>([])
   const [prov, setProv] = useState<ProvItem[]>([])
   const [muni, setMuni] = useState<MuniItem[]>([])
   useEffect(() => {
     let on = true
     Promise.all([
       fetch('/data/cnae.json').then(r => r.json()),
+      fetch('/data/iae.json').then(r => r.json()),
       fetch('/data/provincias.json').then(r => r.json()),
       fetch('/data/municipios.json').then(r => r.json()),
-    ]).then(([c, p, m]) => { if (on) { setCnae(c); setProv(p); setMuni(m) } }).catch(() => {})
+    ]).then(([c, i, p, m]) => { if (on) { setCnae(c); setIae(i); setProv(p); setMuni(m) } }).catch(() => {})
     return () => { on = false }
   }, [])
-  return { cnae, prov, muni }
+  return { cnae, iae, prov, muni }
 }
 
-// Multi-selector de CNAE con buscador (por código o por actividad)
-function CnaeMultiSelect({ all, value, onChange }: { all: CnaeItem[]; value: string[]; onChange: (v: string[]) => void }) {
+// Multi-selector con buscador (por código o por actividad). Sirve para CNAE e IAE.
+function CatalogMultiSelect({ all, value, onChange, placeholder, loadingLabel }: { all: CnaeItem[]; value: string[]; onChange: (v: string[]) => void; placeholder: string; loadingLabel: string }) {
   const [q, setQ] = useState('')
   const sel = value.map(code => all.find(x => x.c === code)).filter(Boolean) as CnaeItem[]
   const term = q.trim().toLowerCase()
@@ -61,7 +63,7 @@ function CnaeMultiSelect({ all, value, onChange }: { all: CnaeItem[]; value: str
         </div>
       )}
       <input value={q} onChange={e => setQ(e.target.value)} style={inp}
-        placeholder={all.length ? "Busca por código o actividad (ej. 6201 o «programación»)…" : 'Cargando catálogo CNAE…'} />
+        placeholder={all.length ? placeholder : loadingLabel} />
       {matches.length > 0 && (
         <div style={{ border: `1px solid ${C.parchmentDark}`, borderRadius: 7, marginTop: 4, maxHeight: 220, overflowY: 'auto', background: C.white }}>
           {matches.map(x => (
@@ -77,7 +79,7 @@ function CnaeMultiSelect({ all, value, onChange }: { all: CnaeItem[]; value: str
 }
 
 function OrgForm({ initial, onSave, onClose }: { initial?: Partial<Organization>, onSave: (d:any)=>void, onClose:()=>void }) {
-  const { cnae: cnaeAll, prov: provAll, muni: muniAll } = useCatalogs()
+  const { cnae: cnaeAll, iae: iaeAll, prov: provAll, muni: muniAll } = useCatalogs()
   const [form, setForm] = useState({
     name: initial?.name || '',
     tipo_entidad: (initial?.tipo_entidad || 'pyme') as TipoEntidad,
@@ -85,8 +87,7 @@ function OrgForm({ initial, onSave, onClose }: { initial?: Partial<Organization>
     provincia: initial?.provincia || '',
     municipio: initial?.municipio || '',
     cnaes: (initial?.cnaes && initial.cnaes.length ? initial.cnaes : (initial?.cnae ? [initial.cnae] : [])) as string[],
-    iae: initial?.iae || '',
-    iae_desc: initial?.iae_desc || '',
+    iaes: (initial?.iaes && initial.iaes.length ? initial.iaes : (initial?.iae ? [initial.iae] : [])) as string[],
     empleados: initial?.empleados?.toString() || '',
     facturacion: initial?.facturacion || '',
     anio_constitucion: initial?.anio_constitucion?.toString() || '',
@@ -164,15 +165,14 @@ function OrgForm({ initial, onSave, onClose }: { initial?: Partial<Organization>
           </div>
           <div style={{gridColumn:'1/-1'}}>
             <label style={lbl}>CNAE (puedes elegir varios)</label>
-            <CnaeMultiSelect all={cnaeAll} value={form.cnaes} onChange={cnaes=>setForm(f=>({...f,cnaes}))}/>
+            <CatalogMultiSelect all={cnaeAll} value={form.cnaes} onChange={cnaes=>setForm(f=>({...f,cnaes}))}
+              placeholder="Busca por código o actividad (ej. 6201 o «programación»)…" loadingLabel="Cargando catálogo CNAE…"/>
           </div>
-          <div>
-            <label style={lbl}>IAE (epígrafe)</label>
-            <input value={form.iae} onChange={set('iae')} style={inp} placeholder="752"/>
-          </div>
-          <div>
-            <label style={lbl}>Descripción IAE</label>
-            <input value={form.iae_desc} onChange={set('iae_desc')} style={inp} placeholder="Servicios informáticos"/>
+          <div style={{gridColumn:'1/-1'}}>
+            <label style={lbl}>IAE (epígrafe — puedes elegir varios)</label>
+            <CatalogMultiSelect all={iaeAll} value={form.iaes} onChange={iaes=>setForm(f=>({...f,iaes}))}
+              placeholder="Busca por epígrafe o actividad (ej. 659.3 u «óptica»)…" loadingLabel="Cargando catálogo IAE…"/>
+            <p style={{margin:'4px 0 0',fontSize:11,color:C.muted}}>CNAE e IAE se usan juntos para afinar qué convocatorias te encajan.</p>
           </div>
           <div>
             <label style={lbl}>Empleados</label>
@@ -209,6 +209,8 @@ function OrgForm({ initial, onSave, onClose }: { initial?: Partial<Organization>
             anio_constitucion:form.anio_constitucion?parseInt(form.anio_constitucion):null,
             cnae: form.cnaes[0] || null,
             cnae_desc: cnaeAll.find(x=>x.c===form.cnaes[0])?.d || null,
+            iae: form.iaes[0] || null,
+            iae_desc: iaeAll.find(x=>x.c===form.iaes[0])?.d || null,
           })} disabled={!form.name.trim()} style={{padding:'9px 24px',
             background:form.name.trim()?C.navy:C.muted,color:C.white,border:'none',
             borderRadius:6,fontSize:14,fontWeight:700,cursor:form.name.trim()?'pointer':'not-allowed'}}>

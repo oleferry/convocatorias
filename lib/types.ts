@@ -17,6 +17,7 @@ export interface Organization {
   cnaes?: string[]
   iae?: string
   iae_desc?: string
+  iaes?: string[]
   empleados?: number
   facturacion?: string
   anio_constitucion?: number
