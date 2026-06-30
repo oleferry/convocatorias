@@ -189,7 +189,11 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   //  • 'sector'   → coincide tu CNAE/IAE o una palabra clave de tu actividad.
   //  • 'elegible' → no es de tu sector, pero está abierta a tu tipo de entidad
   //                 (pyme/autónomo…) y en tu zona: podrías optar igualmente.
-  const tier: MatchTier | null = (sectorMatch || kwHits > 0) ? 'sector' : (benefMatch ? 'elegible' : null)
+  // El nivel 'elegible' (abierto a tu tipo de entidad) solo se aplica a la BDNS,
+  // donde el beneficiario es un dato fiable. El radar (privadas/europeas) casi
+  // siempre dice "pymes", así que ahí exigimos sector/actividad para no meter
+  // ruido (programas europeos de I+D, aceleradoras de startups, etc.).
+  const tier: MatchTier | null = (sectorMatch || kwHits > 0) ? 'sector' : (benefMatch && !isRadar ? 'elegible' : null)
   return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 

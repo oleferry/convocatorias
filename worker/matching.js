@@ -129,7 +129,7 @@ function matchGrant(c, org, todayISO) {
     if (kwHits > 0) { score += Math.min(30, kwHits * 12); reasons.push(`${kwHits} palabra(s) clave`) }
   }
 
-  const tier = (sectorMatch || kwHits > 0) ? 'sector' : (benefMatch ? 'elegible' : null)
+  const tier = (sectorMatch || kwHits > 0) ? 'sector' : (benefMatch && !isRadar ? 'elegible' : null)
   return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 
