@@ -12,7 +12,10 @@ export const fetchCache = 'force-no-store'
 // Prueba de ingesta de LOCALES + matching. BORRAR luego.
 export async function GET() {
   const sb = createAdminSupabase()
-  const sync = await syncBdns(sb, { maxDetails: 150, sinceDays: 30 })
+  // Forzamos ventana amplia para la prueba (el cursor incremental ya está en "hoy").
+  const back = new Date(); back.setDate(back.getDate() - 20)
+  await sb.from('bdns_sync_state').update({ last_fecha_recepcion: back.toISOString().slice(0, 10) }).eq('id', 1)
+  const sync = await syncBdns(sb, { maxDetails: 200 })
 
   const { data: local } = await sb.from('convocatorias_publicas').select('titulo,nivel1,ccaa,provincia,organo,fecha_fin').eq('nivel1', 'LOCAL').limit(30)
 
