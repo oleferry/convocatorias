@@ -12,9 +12,10 @@ export const fetchCache = 'force-no-store'
 // Prueba de ingesta de LOCALES + matching. BORRAR luego.
 export async function GET() {
   const sb = createAdminSupabase()
+  const { data: stateBefore } = await sb.from('bdns_sync_state').select('*').eq('id', 1).maybeSingle()
   // Forzamos ventana amplia para la prueba (el cursor incremental ya está en "hoy").
   const back = new Date(); back.setDate(back.getDate() - 20)
-  await sb.from('bdns_sync_state').update({ last_fecha_recepcion: back.toISOString().slice(0, 10) }).eq('id', 1)
+  const upd = await sb.from('bdns_sync_state').upsert({ id: 1, last_fecha_recepcion: back.toISOString().slice(0, 10) })
   const sync = await syncBdns(sb, { maxDetails: 200 })
 
   const { data: local } = await sb.from('convocatorias_publicas').select('titulo,nivel1,ccaa,provincia,organo,fecha_fin').eq('nivel1', 'LOCAL').limit(30)
@@ -27,5 +28,5 @@ export async function GET() {
     return { titulo: tituloCorto(c.titulo), provincia: c.provincia, organo: c.organo, match: m.match, reasons: m.reasons }
   })
 
-  return NextResponse.json({ sync, totalLocal: (local || []).length, org: { ccaa: o.ccaa, prov: o.provincia, muni: o.municipio }, matches })
+  return NextResponse.json({ stateBefore, updErr: upd.error?.message, sync, totalLocal: (local || []).length, org: { ccaa: o.ccaa, prov: o.provincia, muni: o.municipio }, matches })
 }
