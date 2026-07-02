@@ -164,7 +164,7 @@ function GrantCard({ grant, org, onClick, compact }: { grant: Grant; org?: Organ
 }
 
 // ─── SUGGESTION CARD (catálogo BDNS) ──────────────────────────────────────────
-function SuggestionCard({ c, saved, onSave }: { c: any; saved: boolean; onSave: () => void }) {
+function SuggestionCard({ c, saved, onSave, onLead }: { c: any; saved: boolean; onSave: () => void; onLead: () => void }) {
   const days = daysLeft(c.fecha_fin)
   const u = urgency(days)
   const scoreColor = c.matchScore >= 80 ? T.green : c.matchScore >= 50 ? T.amber : T.inkLight
@@ -208,10 +208,68 @@ function SuggestionCard({ c, saved, onSave }: { c: any; saved: boolean; onSave: 
           </span>
           {c.bases_url && <a href={c.bases_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.navy, textDecoration: 'none', fontWeight: 600 }}>🔗 Bases</a>}
           <div style={{ flex: 1 }} />
+          <button onClick={onLead} title="Te ponemos en contacto con una gestoría especializada"
+            style={{ padding: '7px 12px', background: 'transparent', color: T.purple, border: `1px solid ${T.purple}`, borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>🤝 Quiero ayuda</button>
           {saved
             ? <span style={{ fontSize: 13, color: T.green, fontWeight: 700 }}>✅ Guardada</span>
             : <button onClick={onSave} style={{ padding: '7px 16px', background: T.gold, color: T.ink, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>+ Guardar</button>}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── MODAL: solicitar ayuda de gestoría (lead / monetización) ─────────────────
+function LeadModal({ item, user, onClose }: { item: any; user: any; onClose: () => void }) {
+  const [nombre, setNombre] = useState((user?.user_metadata?.full_name as string) || '')
+  const [email, setEmail] = useState(user?.email || '')
+  const [telefono, setTelefono] = useState('')
+  const [mensaje, setMensaje] = useState('')
+  const [sending, setSending] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  async function submit() {
+    setSending(true); setErr('')
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: item.grant_titulo || item.titulo, codigo_bdns: item.codigo_bdns || null,
+          url: item.bases_url || item.url || null, fuente: item.fuente || null, orgId: item.org_id || null,
+          nombre, email, telefono, mensaje,
+        }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Error')
+      setDone(true)
+    } catch (e: any) { setErr(e.message || 'Error') } finally { setSending(false) }
+  }
+  const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', marginTop: 4 }
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(18,18,18,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: T.bgCard, borderRadius: 16, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 12px 48px rgba(0,0,0,0.25)' }}>
+        {done ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 44 }}>🐾</div>
+            <h3 style={{ color: T.ink, margin: '8px 0' }}>¡Recibido!</h3>
+            <p style={{ color: T.inkLight, fontSize: 14 }}>Te pondremos en contacto con una gestoría especializada en esta ayuda. Revisaremos tu caso y te escribimos.</p>
+            <button onClick={onClose} style={{ marginTop: 16, padding: '10px 24px', background: T.navy, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Cerrar</button>
+          </div>
+        ) : (
+          <>
+            <h3 style={{ color: T.ink, margin: '0 0 4px' }}>🤝 Quiero ayuda con esta ayuda</h3>
+            <p style={{ color: T.inkLight, fontSize: 13, margin: '0 0 6px' }}>{item.grant_titulo || item.titulo}</p>
+            <p style={{ color: T.inkMuted, fontSize: 12.5, margin: '0 0 16px' }}>Te ponemos en contacto con una gestoría especializada que te la tramita. Déjanos cómo contactarte.</p>
+            <label style={{ fontSize: 12, fontWeight: 600, color: T.inkLight }}>Nombre<input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: T.inkLight, display: 'block', marginTop: 10 }}>Email<input value={email} onChange={e => setEmail(e.target.value)} style={inp} /></label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: T.inkLight, display: 'block', marginTop: 10 }}>Teléfono<input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Para que te llamen" style={inp} /></label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: T.inkLight, display: 'block', marginTop: 10 }}>Mensaje (opcional)<textarea value={mensaje} onChange={e => setMensaje(e.target.value)} rows={2} style={{ ...inp, resize: 'vertical' }} /></label>
+            {err && <div style={{ color: T.red, fontSize: 13, marginTop: 10 }}>{err}</div>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+              <button onClick={onClose} style={{ padding: '10px 18px', background: 'none', border: `1px solid ${T.border}`, borderRadius: 8, color: T.inkLight, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={submit} disabled={sending || !email} style={{ padding: '10px 22px', background: sending ? T.inkMuted : T.gold, color: T.ink, border: 'none', borderRadius: 8, fontWeight: 800, cursor: sending ? 'wait' : 'pointer' }}>{sending ? 'Enviando…' : 'Solicitar ayuda'}</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -331,6 +389,14 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
           <span>{tgLinked ? '✅' : '🔗'}</span>
           {tgLinked ? 'Telegram conectado' : 'Conectar Telegram'}
         </button>
+
+        {['daniel@gafasvan.com', 'daniel.paniagua.f@gmail.com'].includes((user?.email || '').toLowerCase()) && (
+          <a href="/admin/leads" style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, textDecoration: 'none',
+            padding: '9px 10px', borderRadius: 8, background: 'rgba(230,168,0,0.18)', color: '#F0C550',
+            fontSize: 12.5, fontWeight: 700, outline: '1px solid rgba(230,168,0,0.25)',
+          }}>🤝 Leads (admin)</a>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px' }}>
           <div style={{ width: 30, height: 30, borderRadius: '50%', background: T.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: T.ink }}>
@@ -1001,6 +1067,7 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [loadingSug, setLoadingSug] = useState(false)
   const [savedSug, setSavedSug] = useState<Set<string>>(new Set())
+  const [leadFor, setLeadFor] = useState<any>(null)
   const [memoria, setMemoria] = useState<{ open: boolean; loading: boolean; text: string; error: string } | null>(null)
   const [tgLinked, setTgLinked] = useState(false)
   const router = useRouter()
@@ -1272,12 +1339,12 @@ export default function Dashboard() {
                     {head('🎯', `Para tu sector (${sector.length})`, 'Afines a tu CNAE/IAE o a tu actividad.')}
                     {sector.length === 0
                       ? <div style={{ fontSize: 13, color: T.inkMuted, padding: '8px 0' }}>Ninguna específica de tu sector ahora mismo. Mira las de abajo: podrías optar igualmente.</div>
-                      : <div style={grid}>{sector.map(c => <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} />)}</div>}
+                      : <div style={grid}>{sector.map(c => <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} onLead={() => setLeadFor({ ...c, grant_titulo: c.titulo })} />)}</div>}
                   </div>
                   {elegibles.length > 0 && (
                     <div>
                       {head('🤝', `También podrías optar (${elegibles.length})`, 'No son de tu sector, pero están abiertas a tu tipo de entidad y en tu zona.')}
-                      <div style={grid}>{elegibles.map(c => <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} />)}</div>
+                      <div style={grid}>{elegibles.map(c => <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} onLead={() => setLeadFor({ ...c, grant_titulo: c.titulo })} />)}</div>
                     </div>
                   )}
                 </div>
@@ -1286,6 +1353,9 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* LEAD (solicitar gestoría) */}
+      {leadFor && <LeadModal item={leadFor} user={user} onClose={() => setLeadFor(null)} />}
 
       {/* DETAIL PANEL (slide-in) */}
       {selected && modal !== 'edit' && (
