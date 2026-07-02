@@ -9,6 +9,8 @@
 //  Fechas en formato dd/mm/yyyy. Paginación estilo Spring (totalPages).
 // ================================================================
 
+import { resolveLocalGeo } from './geo'
+
 export const BDNS_BASE = 'https://www.infosubvenciones.es/bdnstrans/api'
 export const BDNS_VPD = 'GE' // portal general (Gobierno de España)
 
@@ -63,6 +65,7 @@ export interface ConvocatoriaPublicaRow {
   nivel1: string | null
   ccaa_raw: string | null
   ccaa: string | null
+  provincia: string | null
   organo: string | null
   presupuesto_total: number | null
   finalidad: string | null
@@ -166,6 +169,14 @@ export function normalizeCcaa(nivel1?: string, nivel2?: string): string | null {
 export function normalizeDetail(d: BdnsDetail): ConvocatoriaPublicaRow {
   const nivel1 = d.organo?.nivel1 || null
   const ccaaRaw = d.organo?.nivel2 || null
+  let ccaa = normalizeCcaa(nivel1 || undefined, ccaaRaw || undefined)
+  let provincia: string | null = null
+  // Sub-estatal cuyo nivel2 no es un nombre de CCAA (típico de LOCAL: municipio
+  // o "Diputación de X"): resolvemos provincia/CCAA vía el catálogo INE.
+  if (!ccaa && (nivel1 || '').toUpperCase() !== 'ESTATAL') {
+    const geo = resolveLocalGeo(ccaaRaw, d.organo?.nivel3, (d.regiones || []).map(r => r.descripcion))
+    if (geo) { ccaa = geo.ccaa; provincia = geo.provincia }
+  }
   return {
     codigo_bdns: d.codigoBDNS || String(d.id),
     id_bdns: d.id ?? null,
@@ -173,7 +184,8 @@ export function normalizeDetail(d: BdnsDetail): ConvocatoriaPublicaRow {
     tipo_convocatoria: d.tipoConvocatoria || null,
     nivel1,
     ccaa_raw: ccaaRaw,
-    ccaa: normalizeCcaa(nivel1 || undefined, ccaaRaw || undefined),
+    ccaa,
+    provincia,
     organo: d.organo?.nivel3 || null,
     presupuesto_total: typeof d.presupuestoTotal === 'number' ? d.presupuestoTotal : null,
     finalidad: d.descripcionFinalidad || null,

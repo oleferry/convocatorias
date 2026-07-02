@@ -4,6 +4,7 @@
 //  serverless. Pre-filtra por las CCAA de los perfiles de usuario.
 // ================================================================
 import { searchConvocatorias, getConvocatoriaDetail, normalizeDetail, normalizeCcaa } from './bdns'
+import { resolveLocalGeo } from './geo'
 
 function ymd(d: Date) { return d.toISOString().slice(0, 10) }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -20,9 +21,10 @@ export async function syncBdns(sb: any, opts: { sinceDays?: number; maxDetails?:
   if (state?.last_fecha_recepcion) since = new Date(state.last_fecha_recepcion)
   else { since = new Date(); since.setDate(since.getDate() - (opts.sinceDays ?? 7)) }
 
-  // CCAA activas (de los perfiles) → solo pedimos detalle de lo relevante
-  const { data: orgs } = await sb.from('organizations').select('ccaa').eq('is_archived', false)
+  // CCAA/provincias activas (de los perfiles) → solo pedimos detalle de lo relevante
+  const { data: orgs } = await sb.from('organizations').select('ccaa, provincia').eq('is_archived', false)
   const ccaaSet = new Set((orgs || []).map((o: any) => o.ccaa).filter(Boolean))
+  const provinciaSet = new Set((orgs || []).map((o: any) => o.provincia).filter(Boolean))
   const hasFilter = ccaaSet.size > 0
 
   // 1) Recolectar resúmenes de la ventana
@@ -33,7 +35,18 @@ export async function syncBdns(sb: any, opts: { sinceDays?: number; maxDetails?:
     totalPages = res.totalPages || 1
     for (const it of res.content || []) {
       if (!hasFilter) { candidates.push(it); continue }
-      if ((it.nivel1 || '').toUpperCase() === 'ESTATAL') { candidates.push(it); continue }
+      const n1 = (it.nivel1 || '').toUpperCase()
+      if (n1 === 'ESTATAL') { candidates.push(it); continue }
+      if (n1 === 'LOCAL') {
+        // nivel2 aquí es el municipio o "Diputación de X" (no una CCAA): hay que
+        // resolver su provincia/CCAA vía el catálogo INE antes de decidir.
+        const geo = resolveLocalGeo(it.nivel2, it.nivel3)
+        if (!geo || !ccaaSet.has(geo.ccaa)) continue
+        // Si algún perfil tiene provincia fijada, acotamos a esas (si no, solo por CCAA).
+        if (provinciaSet.size && !provinciaSet.has(geo.provincia)) continue
+        candidates.push(it)
+        continue
+      }
       const ccaa = normalizeCcaa(it.nivel1, it.nivel2)
       if (ccaa && ccaaSet.has(ccaa)) candidates.push(it)
     }

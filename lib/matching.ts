@@ -18,6 +18,7 @@ export interface PublicGrantRow {
   tipo_convocatoria: string | null
   nivel1: string | null
   ccaa: string | null
+  provincia?: string | null
   organo: string | null
   presupuesto_total: number | null
   finalidad: string | null
@@ -126,18 +127,20 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   } else {
     // Sub-estatal: primero la CCAA debe coincidir.
     if (!c.ccaa || c.ccaa !== org.ccaa) return { match: false, score: 0, reasons: [], tier: null }
-    // Solo acotamos por zona cuando el ORGANISMO es claramente local (un
-    // ayuntamiento/diputación concreto). Las autonómicas (Consejería, ICECYL…)
-    // cubren toda la CCAA aunque en sus datos enumeren provincias, así que no se
-    // filtran por provincia/municipio.
-    const organoTxt = strip(c.organo || '')
-    const prov = strip(org.provincia || ''); const muni = strip(org.municipio || '')
-    const localOrg = /ayuntamiento|diputaci|concejo\b|cabildo|consell insular|mancomunidad|comarca de/.test(organoTxt)
-    if (localOrg && (prov || muni)) {
+    // Solo acotamos por zona cuando la BDNS clasifica la convocatoria como LOCAL
+    // (ayuntamiento/diputación concreto). Las autonómicas (Consejería, ICECYL…)
+    // cubren toda la CCAA, así que no se filtran por provincia/municipio.
+    if ((c.nivel1 || '').toUpperCase() === 'LOCAL') {
+      const prov = strip(org.provincia || ''); const muni = strip(org.municipio || '')
+      const cProv = strip(c.provincia || ''); const organoTxt = strip(c.organo || '')
       const muniHit = !!muni && organoTxt.includes(muni)
-      const provHit = !!prov && organoTxt.includes(prov)
-      if (!muniHit && !provHit) return { match: false, score: 0, reasons: [], tier: null } // local de OTRA zona
-      score += 15; reasons.push(muniHit ? `Tu municipio (${org.municipio})` : `Tu provincia (${org.provincia})`)
+      const provHit = !!prov && (cProv === prov || organoTxt.includes(prov))
+      if (!muniHit && !provHit) {
+        if (prov || muni) return { match: false, score: 0, reasons: [], tier: null } // local de OTRA zona
+      } else {
+        score += 15; reasons.push(muniHit ? `Tu municipio (${org.municipio})` : `Tu provincia (${org.provincia})`)
+      }
+      if (!muniHit && !provHit) reasons.push(`Tu CCAA (${org.ccaa})`) // perfil sin provincia/municipio: solo sabemos la CCAA
     } else {
       reasons.push(`Tu CCAA (${org.ccaa})`)
     }
