@@ -11,6 +11,7 @@
 //  Devuelve score 0-100 y razones legibles.
 // ================================================================
 import type { Organization, GrantAmbito } from './types'
+import { regionScopeFromRegiones } from './geo'
 
 export interface PublicGrantRow {
   codigo_bdns: string
@@ -127,20 +128,32 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   } else {
     // Sub-estatal: primero la CCAA debe coincidir.
     if (!c.ccaa || c.ccaa !== org.ccaa) return { match: false, score: 0, reasons: [], tier: null }
-    // Solo acotamos por zona cuando la BDNS clasifica la convocatoria como LOCAL
-    // (ayuntamiento/diputación concreto). Las autonómicas (Consejería, ICECYL…)
-    // cubren toda la CCAA, así que no se filtran por provincia/municipio.
-    if ((c.nivel1 || '').toUpperCase() === 'LOCAL') {
-      const prov = strip(org.provincia || ''); const muni = strip(org.municipio || '')
+
+    // Alcance REAL por NUTS (c.regiones) — más fiable que nivel1: hay programas
+    // etiquetados "AUTONOMICA" por la BDNS que en realidad están acotados a una
+    // comarca/provincia (ej. "Nordeste de Segovia"). Si la tuya no está entre
+    // las provincias listadas, fuera — sea AUTONOMICA o LOCAL.
+    const prov = strip(org.provincia || ''); const muni = strip(org.municipio || '')
+    const scope = regionScopeFromRegiones(c.regiones)
+    if (!scope.wide && scope.provincias.length && prov) {
+      if (!scope.provincias.some(p => strip(p) === prov)) return { match: false, score: 0, reasons: [], tier: null }
+    }
+
+    const isLocal = (c.nivel1 || '').toUpperCase() === 'LOCAL'
+    if (isLocal) {
+      // Además, para LOCAL exigimos que el organismo (ayuntamiento concreto) sea
+      // el tuyo — dos pueblos de la misma provincia no deben mezclarse.
       const cProv = strip(c.provincia || ''); const organoTxt = strip(c.organo || '')
       const muniHit = !!muni && organoTxt.includes(muni)
       const provHit = !!prov && (cProv === prov || organoTxt.includes(prov))
       if (!muniHit && !provHit) {
         if (prov || muni) return { match: false, score: 0, reasons: [], tier: null } // local de OTRA zona
+        reasons.push(`Tu CCAA (${org.ccaa})`)
       } else {
         score += 15; reasons.push(muniHit ? `Tu municipio (${org.municipio})` : `Tu provincia (${org.provincia})`)
       }
-      if (!muniHit && !provHit) reasons.push(`Tu CCAA (${org.ccaa})`) // perfil sin provincia/municipio: solo sabemos la CCAA
+    } else if (!scope.wide && scope.provincias.length && prov) {
+      score += 15; reasons.push(`Tu provincia (${org.provincia})`)
     } else {
       reasons.push(`Tu CCAA (${org.ccaa})`)
     }

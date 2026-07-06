@@ -69,3 +69,27 @@ export function resolveLocalGeo(nivel2?: string | null, nivel3?: string | null, 
   if (n2) { const g = provinciaFromMunicipioName(n2); if (g) return g }
   return null
 }
+
+export interface RegionScope { wide: boolean; provincias: string[] }
+
+/**
+ * Alcance geográfico REAL de una convocatoria a partir del código NUTS de
+ * `regiones` — más fiable que fiarse de si la BDNS la etiqueta como
+ * AUTONOMICA o LOCAL (hay programas "autonómicos" en los papeles que en
+ * realidad están acotados a una comarca/provincia, ej. "Nordeste de
+ * Segovia"). NUTS: "ES" (país) / "ES4" (zona, 1 dígito) / "ES41" (CCAA,
+ * 2 dígitos) → alcance amplio. "ES418" (provincia, 3 dígitos) → acotada.
+ */
+export function regionScopeFromRegiones(regiones?: (string | null | undefined)[] | null): RegionScope {
+  const list = (regiones || []).filter(Boolean) as string[]
+  if (!list.length) return { wide: true, provincias: [] }
+  const provincias: string[] = []
+  for (const r of list) {
+    const m = /^(ES\d*)\s*-\s*(.+)$/i.exec(r.trim())
+    const code = (m ? m[1] : r.trim())
+    const digits = (/^ES(\d*)/i.exec(code)?.[1] || '').length
+    if (digits === 0 || digits === 1 || digits === 2) return { wide: true, provincias: [] } // país/zona/CCAA entera
+    if (m) { const g = provinciaFromName(m[2]); if (g) provincias.push(g.provincia) }
+  }
+  return { wide: provincias.length === 0, provincias: Array.from(new Set(provincias)) }
+}

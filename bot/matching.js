@@ -1,10 +1,35 @@
 // ================================================================
 //  Matching por reglas (espejo CommonJS de lib/matching.ts) — v2
-//  Mantener sincronizado con lib/matching.ts.
+//  Mantener sincronizado con lib/matching.ts y lib/geo.ts.
 // ================================================================
+const provincias = require('./data/provincias.json')
 
 function strip(s) {
   return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
+function normKey(s) {
+  return strip(s).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).sort().join('-')
+}
+const PROVINCIA_BY_KEY = new Map(provincias.map(p => [normKey(p.n), p]))
+function provinciaFromName(name) {
+  const p = PROVINCIA_BY_KEY.get(normKey(name))
+  return p ? { provincia: p.n, ccaa: p.ccaa } : null
+}
+
+// Alcance geográfico real por NUTS de `regiones` (espejo de lib/geo.ts).
+function regionScopeFromRegiones(regiones) {
+  const list = (regiones || []).filter(Boolean)
+  if (!list.length) return { wide: true, provincias: [] }
+  const provs = []
+  for (const r of list) {
+    const m = /^(ES\d*)\s*-\s*(.+)$/i.exec(r.trim())
+    const code = m ? m[1] : r.trim()
+    const digits = (/^ES(\d*)/i.exec(code) || [])[1]?.length || 0
+    if (digits <= 2) return { wide: true, provincias: [] }
+    if (m) { const g = provinciaFromName(m[2]); if (g) provs.push(g.provincia) }
+  }
+  return { wide: provs.length === 0, provincias: [...new Set(provs)] }
 }
 
 function tokens(s) {
@@ -79,17 +104,27 @@ function matchGrant(c, org, todayISO) {
     reasons.push('Ámbito estatal')
   } else {
     if (!c.ccaa || c.ccaa !== org.ccaa) return { match: false, score: 0, reasons: [], tier: null }
-    if ((c.nivel1 || '').toUpperCase() === 'LOCAL') {
-      const prov = strip(org.provincia || ''), muni = strip(org.municipio || '')
+
+    // Alcance real por NUTS (independiente de si BDNS la marca AUTONOMICA o LOCAL).
+    const prov = strip(org.provincia || ''), muni = strip(org.municipio || '')
+    const scope = regionScopeFromRegiones(c.regiones)
+    if (!scope.wide && scope.provincias.length && prov) {
+      if (!scope.provincias.some(p => strip(p) === prov)) return { match: false, score: 0, reasons: [], tier: null }
+    }
+
+    const isLocal = (c.nivel1 || '').toUpperCase() === 'LOCAL'
+    if (isLocal) {
       const cProv = strip(c.provincia || ''), organoTxt = strip(c.organo || '')
       const muniHit = !!muni && organoTxt.includes(muni)
       const provHit = !!prov && (cProv === prov || organoTxt.includes(prov))
       if (!muniHit && !provHit) {
         if (prov || muni) return { match: false, score: 0, reasons: [], tier: null }
+        reasons.push(`Tu CCAA (${org.ccaa})`)
       } else {
         score += 15; reasons.push(muniHit ? `Tu municipio (${org.municipio})` : `Tu provincia (${org.provincia})`)
       }
-      if (!muniHit && !provHit) reasons.push(`Tu CCAA (${org.ccaa})`)
+    } else if (!scope.wide && scope.provincias.length && prov) {
+      score += 15; reasons.push(`Tu provincia (${org.provincia})`)
     } else {
       reasons.push(`Tu CCAA (${org.ccaa})`)
     }
