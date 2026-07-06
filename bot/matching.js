@@ -70,7 +70,7 @@ function matchGrant(c, org, todayISO) {
   const reasons = []
   const isRadar = !!c.fuente && c.fuente !== 'bdns'
   const open = isRadar || (!!c.fecha_fin && c.fecha_fin >= todayISO)
-  if (!open) return { match: false, score: 0, reasons: [] }
+  if (!open) return { match: false, score: 0, reasons: [], tier: null }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'
   let score = 10
@@ -141,4 +141,15 @@ function formatEuro(n) {
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €'
 }
 
-module.exports = { matchGrant, formatEuro }
+// Resume el título oficial (espejo de lib/matching.ts → tituloCorto).
+function tituloCorto(t) {
+  let s = (t || '').replace(/\s+/g, ' ').trim()
+  const m = s.match(/(subvenci\w*|ayudas?\b|becas?\b|premios?\b|l[ií]neas? de ayuda|bono\w*)[\s\S]*/i)
+  if (m) s = m[0].trim()
+  s = s.replace(/[\s,;.:]+$/, '')
+  if (s) s = s.charAt(0).toUpperCase() + s.slice(1)
+  if (s.length > 120) s = s.slice(0, 117).replace(/\s+\S*$/, '') + '…'
+  return s || (t || '')
+}
+
+module.exports = { matchGrant, formatEuro, tituloCorto }

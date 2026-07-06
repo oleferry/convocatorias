@@ -13,6 +13,7 @@ const TelegramBot = require('node-telegram-bot-api')
 const cron = require('node-cron')
 const { createClient } = require('@supabase/supabase-js')
 const Anthropic = require('@anthropic-ai/sdk')
+const { matchGrant, formatEuro, tituloCorto } = require('./matching')
 
 // ── Configuración ──────────────────────────────────────────────
 const {
@@ -121,10 +122,11 @@ const HELP = [
   '<b>🐾 DamePerrasPerro</b> — el perro que encuentra las perras.',
   '',
   'Esto es lo que sé hacer:',
+  '/sugerencias — lo que tengo ya olfateado para ti (al instante)',
   '/hoy — lo que cierra pronto (no te despistes)',
   '/pendientes — lo que tienes entre manos',
   '/resumen — cómo vas, en números',
-  '/buscar — salgo a olfatearte ayudas nuevas',
+  '/buscar — salgo a olfatear ayudas nuevas por internet (más lento)',
   '/desvincular — si te quieres ir (tú verás)',
   '',
   '🔒 ¿Aún no estás conectado? Hazlo desde tu panel → <b>"Conectar Telegram"</b>.',
@@ -210,6 +212,48 @@ bot.onText(/^\/resumen\b/, async (msg) => {
   }
   lines.push('', `🔥 Urgentes (≤14d): <b>${urgent}</b>`)
   send(chatId, lines.join('\n'))
+})
+
+// Catálogo ya poblado (BDNS + radar privado/europeo) — instantáneo y gratis,
+// a diferencia de /buscar que llama a la IA con búsqueda web en vivo.
+bot.onText(/^\/sugerencias\b/, async (msg) => {
+  const chatId = msg.chat.id
+  const user = await requireUser(chatId)
+  if (!user) return
+
+  const { data: orgs } = await sb.from('organizations').select('*')
+    .eq('user_id', user.id).eq('is_archived', false)
+    .order('is_default', { ascending: false }).order('created_at')
+  const org = (orgs || [])[0]
+  if (!org) return send(chatId, `Aún no me has dicho a qué te dedicas. Créate un perfil aquí y sabré qué buscarte: ${esc(APP_URL)}/organizations`)
+
+  const today = new Date().toISOString().slice(0, 10)
+  const [{ data: bdns }, { data: radar }, { data: saved }] = await Promise.all([
+    sb.from('convocatorias_publicas').select('*')
+      .not('fecha_fin', 'is', null).gte('fecha_fin', today)
+      .or(`nivel1.eq.ESTATAL,ccaa.eq.${org.ccaa}`).limit(400),
+    sb.from('convocatorias_publicas').select('*').neq('fuente', 'bdns').limit(150),
+    sb.from('grants').select('codigo_bdns').eq('user_id', user.id).not('codigo_bdns', 'is', null),
+  ])
+  const savedSet = new Set((saved || []).map(g => g.codigo_bdns))
+  const pool = [...(bdns || []), ...(radar || [])].filter(c => !savedSet.has(c.codigo_bdns))
+  const hits = pool.map(c => ({ c, m: matchGrant(c, org, today) })).filter(x => x.m.match)
+    .sort((a, b) => (a.m.tier === 'sector' ? 0 : 1) - (b.m.tier === 'sector' ? 0 : 1) || b.m.score - a.m.score)
+
+  if (!hits.length) return send(chatId, `🔍 Sin sugerencias por ahora para <b>${esc(org.name)}</b>. En cuanto huela algo, te aviso. Prueba /buscar para que salga a olfatear por internet.`)
+
+  const fmt = (x) => {
+    const c = x.c
+    const plazo = c.fecha_fin ? deadlineLabel(c.fecha_fin) : '🔁 consulta el plazo en la web'
+    return `<b>${esc(tituloCorto(c.titulo))}</b>\n${c.presupuesto_total != null ? `💰 ${esc(formatEuro(c.presupuesto_total))}   ` : ''}${plazo}${c.bases_url ? `\n🔗 ${esc(c.bases_url)}` : ''}`
+  }
+  const sector = hits.filter(x => x.m.tier === 'sector').slice(0, 5)
+  const elegibles = hits.filter(x => x.m.tier === 'elegible').slice(0, 3)
+  const parts = [`🐾 He olfateado <b>${hits.length}</b> para <b>${esc(org.name)}</b>:`]
+  if (sector.length) parts.push(`\n🎯 <b>Para tu sector</b>\n\n` + sector.map(fmt).join('\n\n'))
+  if (elegibles.length) parts.push(`\n🤝 <b>También podrías optar</b>\n\n` + elegibles.map(fmt).join('\n\n'))
+  parts.push(`\n👉 Ver y guardar: ${esc(APP_URL)}/dashboard`)
+  send(chatId, parts.join('\n'))
 })
 
 bot.onText(/^\/buscar\b/, async (msg) => {
