@@ -436,6 +436,18 @@ cron.schedule('0 9 * * *', runDeadlineAlerts, { timezone: 'Europe/Madrid' })
 bot.on('polling_error', (e) => console.error('[polling_error]', e.code, e.message))
 console.log('🤖 Bot de Convocatorias en marcha. Alertas diarias a las 09:00 Europe/Madrid.')
 
+// Menú de comandos (botón "/" en Telegram) — guía a la gente paso a paso.
+bot.setMyCommands([
+  { command: 'start', description: '🐾 Empezar / conectar tu cuenta' },
+  { command: 'sugerencias', description: '✨ Ayudas ya olfateadas para ti (al instante)' },
+  { command: 'hoy', description: '🔥 Lo que cierra pronto (≤14 días)' },
+  { command: 'pendientes', description: '📋 Lo que tienes entre manos' },
+  { command: 'resumen', description: '📊 Cómo vas, en números' },
+  { command: 'buscar', description: '🔎 Salgo a olfatear ayudas nuevas por internet' },
+  { command: 'ayuda', description: '❓ Qué sé hacer' },
+  { command: 'desvincular', description: '🔌 Desconectar tu cuenta' },
+]).catch((e) => console.error('[setMyCommands]', e.message))
+
 // Ping de arranque: confirma que la clave de Supabase es la correcta (service_role,
 // no anon) — si es la anon, RLS bloquea las lecturas en silencio y todo "parece"
 // caducado/vacío aunque los datos existan.
