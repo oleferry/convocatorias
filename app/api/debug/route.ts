@@ -23,8 +23,16 @@ export async function GET() {
     sb.from('convocatorias_publicas').select('*').neq('fuente', 'bdns').limit(150),
   ])
   const pool = [...(bdns.data || []), ...(radar.data || [])] as PublicGrantRow[]
+  const ccaaCounts: Record<string, number> = {}
+  for (const r of (bdns.data || []) as any[]) { const k = r.ccaa || `(null,nivel1=${r.nivel1})`; ccaaCounts[k] = (ccaaCounts[k] || 0) + 1 }
+  const otrasCcaa = (bdns.data || []).filter((r: any) => r.ccaa && r.ccaa !== o.ccaa)
+    .map((r: any) => ({ titulo: tituloCorto(r.titulo), ccaa: r.ccaa, nivel1: r.nivel1 }))
   const allHits = pool.map(c => ({ c, m: matchGrant(c, o, today) })).filter(x => x.m.match)
   const hits = allHits.filter(x => (x.c.nivel1 || '').toUpperCase() === 'ESTATAL')
     .map(x => ({ titulo: tituloCorto(x.c.titulo), organo: x.c.organo, regiones: (x.c as any).regiones, fuente: x.c.fuente }))
-  return NextResponse.json({ orgsAll, org: { ccaa: o.ccaa }, privRowsCount: (privRows || []).length, privRows, poolTotal: pool.length, allHitsTotal: allHits.length, n: hits.length, hits })
+  return NextResponse.json({
+    orgsAll, org: { ccaa: o.ccaa }, bdnsErr: bdns.error?.message,
+    ccaaCounts, otrasCcaaCount: otrasCcaa.length, otrasCcaa,
+    privRowsCount: (privRows || []).length, poolTotal: pool.length, allHitsTotal: allHits.length, n: hits.length, hits,
+  })
 }
