@@ -43,7 +43,10 @@ function composeEmail(user: any, items: any[]) {
   const name = firstName(user)
   const n = items.length
   const subject = `Te he olido ${n} ayuda${n !== 1 ? 's' : ''} esta semana 🐾`
-  const T = { card: '#FFFFFF', ink: '#121212', mid: '#3A3A3A', light: '#6B7280', green: '#2BA84A', amber: '#E6A800', red: '#D62828', purple: '#7C3AED', border: '#E7E2D6' }
+  // Nota: el email mantiene fondo claro por fiabilidad en clientes de correo
+  // (Outlook y otros renderizan mal fondos oscuros), pero usa los mismos
+  // acentos de la dirección "Rastro" (latón/menta/ladrillo), no crema+dorado.
+  const T = { card: '#FFFFFF', ink: '#1A1A18', mid: '#4A4E48', light: '#767C73', green: '#2F6B4F', amber: '#B8863A', red: '#B14A32', purple: '#6D28D9', border: '#E2E4DC' }
   const cards = items.map((it) => {
     const c = it.c, dl = daysLeft(c.fecha_fin)
     const plazoColor = dl != null && dl <= 7 ? T.red : T.green
@@ -53,19 +56,19 @@ function composeEmail(user: any, items: any[]) {
       <div style="font-size:16px;font-weight:700;color:${T.ink};line-height:1.35;margin-bottom:8px">${esc(c.titulo)}</div>
       ${c.presupuesto_total != null ? `<div style="font-size:15px;font-weight:800;color:${T.ink};margin-bottom:6px">${esc(formatEuro(c.presupuesto_total))}</div>` : ''}
       <div style="font-size:13px;font-weight:700;color:${plazoColor};margin-bottom:8px">⏳ ${esc(plazoTxt(c.fecha_fin))}</div>
-      ${it.reason ? `<div style="display:inline-block;background:#EDE9FE;color:${T.purple};font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;margin-bottom:8px">💡 ${esc(it.reason)}</div>` : ''}
-      ${c.bases_url ? `<div><a href="${esc(c.bases_url)}" style="font-size:13px;color:#1C2B3A;font-weight:600;text-decoration:none">🔗 Ver las bases →</a></div>` : ''}
+      ${it.reason ? `<div style="display:inline-block;background:#EDE6F7;color:${T.purple};font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;margin-bottom:8px">💡 ${esc(it.reason)}</div>` : ''}
+      ${c.bases_url ? `<div><a href="${esc(c.bases_url)}" style="font-size:13px;color:${T.amber};font-weight:600;text-decoration:none">🔗 Ver las bases →</a></div>` : ''}
     </div>`
   }).join('')
   const html = `
-  <div style="background:#F8F4EC;padding:24px 0;font-family:'Inter',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+  <div style="background:#F0F1EC;padding:24px 0;font-family:'Barlow',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
     <div style="max-width:600px;margin:0 auto;padding:0 16px">
       <div style="font-size:13px;color:${T.light};margin-bottom:18px">🐾 <b style="color:${T.ink}">DamePerrasPerro</b> · el perro que encuentra las perras</div>
       <p style="font-size:15px;color:${T.ink};line-height:1.6;margin:0 0 14px">Hola${name ? ' ' + esc(name) : ''}:</p>
       <p style="font-size:15px;color:${T.mid};line-height:1.7;margin:0 0 22px">Me he pasado la semana con el hocico metido en la Base Nacional de Subvenciones y en los fondos europeos. Mira lo que he olido:</p>
       ${cards}
       <div style="text-align:center;margin:22px 0 26px">
-        <a href="${esc(APP_URL)}/dashboard" style="display:inline-block;background:${T.amber};color:#121212;font-size:15px;font-weight:800;text-decoration:none;padding:12px 28px;border-radius:10px">Verlas en tu panel →</a>
+        <a href="${esc(APP_URL)}/dashboard" style="display:inline-block;background:${T.amber};color:#1A1305;font-size:15px;font-weight:800;text-decoration:none;padding:12px 28px;border-radius:10px">Verlas en tu panel →</a>
       </div>
       <p style="font-size:14px;color:${T.mid};line-height:1.7;margin:0 0 4px">Con el hocico bien afinado,</p>
       <p style="font-size:14px;color:${T.ink};font-weight:700;line-height:1.7;margin:0">DamePerrasPerro 🐾</p>

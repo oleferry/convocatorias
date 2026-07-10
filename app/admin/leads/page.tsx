@@ -45,7 +45,7 @@ export default function AdminLeadsPage() {
 
   const th: React.CSSProperties = { textAlign: 'left', fontSize: 11, textTransform: 'uppercase', color: T.inkMuted, padding: '8px 10px', letterSpacing: '0.04em' }
   const td: React.CSSProperties = { padding: '10px', fontSize: 13, color: T.ink, borderTop: `1px solid ${T.border}`, verticalAlign: 'top' }
-  const inp: React.CSSProperties = { width: '100%', padding: '5px 7px', border: `1px solid ${T.border}`, borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit', boxSizing: 'border-box' }
+  const inp: React.CSSProperties = { width: '100%', padding: '5px 7px', border: `1px solid ${T.border}`, borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit', boxSizing: 'border-box', background: T.bgSidebar, color: T.ink }
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: FONT }}>
@@ -53,7 +53,7 @@ export default function AdminLeadsPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 14 }}>
           <a href="/dashboard" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 20 }}>←</a>
           <h1 style={{ margin: 0, fontSize: 20, color: '#fff', fontWeight: 800, flex: 1 }}>🤝 Leads · panel de administración</h1>
-          <button onClick={load} style={{ padding: '8px 14px', background: T.gold, color: T.ink, border: 'none', borderRadius: 8, fontWeight: 800, cursor: 'pointer', fontSize: 13 }}>↻ Actualizar</button>
+          <button onClick={load} style={{ padding: '8px 14px', background: T.gold, color: T.inkOnAccent, border: 'none', borderRadius: 8, fontWeight: 800, cursor: 'pointer', fontSize: 13 }}>↻ Actualizar</button>
         </div>
       </div>
 

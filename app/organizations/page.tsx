@@ -109,7 +109,7 @@ function OrgForm({ initial, onSave, onClose }: { initial?: Partial<Organization>
   return (
     <div style={{padding:24}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-        <h2 style={{margin:0,fontSize:18,color:C.navy}}>{initial?.id?'Editar perfil':'Nuevo perfil de empresa'}</h2>
+        <h2 style={{margin:0,fontSize:18,color:C.ink}}>{initial?.id?'Editar perfil':'Nuevo perfil de empresa'}</h2>
         <button onClick={onClose} style={{background:'none',border:'none',fontSize:22,cursor:'pointer',color:C.slate}}>×</button>
       </div>
 
@@ -212,7 +212,7 @@ function OrgForm({ initial, onSave, onClose }: { initial?: Partial<Organization>
             iae: form.iaes[0] || null,
             iae_desc: iaeAll.find(x=>x.c===form.iaes[0])?.d || null,
           })} disabled={!form.name.trim()} style={{padding:'9px 24px',
-            background:form.name.trim()?C.navy:C.muted,color:C.white,border:'none',
+            background:form.name.trim()?C.gold:C.muted,color:form.name.trim()?T.inkOnAccent:C.white,border:'none',
             borderRadius:6,fontSize:14,fontWeight:700,cursor:form.name.trim()?'pointer':'not-allowed'}}>
             Guardar perfil
           </button>
@@ -284,7 +284,7 @@ export default function OrganizationsPage() {
             </p>
           </div>
           <button onClick={()=>setCreating(true)} style={{padding:'9px 18px',background:C.gold,
-            color:C.ink,border:'none',borderRadius:8,fontSize:13,fontWeight:800,cursor:'pointer'}}>
+            color:T.inkOnAccent,border:'none',borderRadius:8,fontSize:13,fontWeight:800,cursor:'pointer'}}>
             + Nuevo perfil
           </button>
         </div>
@@ -294,12 +294,12 @@ export default function OrganizationsPage() {
         {orgs.length===0 && !creating && (
           <div style={{textAlign:'center',padding:'64px 24px'}}>
             <div style={{fontSize:48,marginBottom:12}}>🏢</div>
-            <h3 style={{color:C.navy,margin:'0 0 8px'}}>Sin perfiles aún</h3>
+            <h3 style={{color:C.ink,margin:'0 0 8px'}}>Sin perfiles aún</h3>
             <p style={{color:C.slate,fontSize:14,margin:'0 0 24px'}}>
               Crea tu primer perfil de empresa para empezar a gestionar convocatorias.
             </p>
             <button onClick={()=>setCreating(true)} style={{padding:'10px 24px',background:C.gold,
-              color:C.ink,border:'none',borderRadius:6,fontSize:14,fontWeight:800,cursor:'pointer'}}>
+              color:T.inkOnAccent,border:'none',borderRadius:6,fontSize:14,fontWeight:800,cursor:'pointer'}}>
               Crear primer perfil
             </button>
           </div>
@@ -329,7 +329,7 @@ export default function OrganizationsPage() {
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span style={{fontSize:16,fontWeight:700,color:C.navy}}>{org.name}</span>
+                    <span style={{fontSize:16,fontWeight:700,color:C.ink}}>{org.name}</span>
                     {org.is_default&&<span style={{padding:'2px 8px',background:C.amberLight,
                       color:C.amber,fontSize:11,fontWeight:700,borderRadius:10}}>activo</span>}
                     {saved===org.id&&<span style={{fontSize:12,color:C.green}}>✅ Guardado</span>}
@@ -366,8 +366,8 @@ export default function OrganizationsPage() {
         </div>
 
         {orgs.length>0&&(
-          <div style={{marginTop:20,padding:14,background:'#E8EDF5',borderRadius:8,
-            fontSize:13,color:C.navy}}>
+          <div style={{marginTop:20,padding:14,background:T.goldSoft,borderRadius:8,
+            fontSize:13,color:C.ink}}>
             💡 El perfil <strong>activo</strong> es el que se usa por defecto al añadir convocatorias y al hacer la búsqueda autónoma con IA.
             Puedes cambiar el perfil activo desde el dashboard en cualquier momento.
           </div>

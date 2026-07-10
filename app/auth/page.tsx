@@ -46,7 +46,7 @@ export default function AuthPage() {
 
   const inp: React.CSSProperties = { width:'100%',padding:'10px 12px',
     border:`1px solid ${C.parchmentDark}`,borderRadius:8,fontSize:15,outline:'none',
-    boxSizing:'border-box',fontFamily:'inherit',color:C.navy }
+    boxSizing:'border-box',fontFamily:'inherit',color:C.ink,background:C.white }
   const lbl: React.CSSProperties = { fontSize:12,fontWeight:600,color:C.slate,
     display:'block',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.04em' }
 
@@ -64,7 +64,7 @@ export default function AuthPage() {
                 onError={(e)=>{const t=e.currentTarget;t.style.display='none';const p=t.parentElement;if(p)p.textContent='🐶'}}/>
             </div>
           </div>
-          <h1 style={{margin:0,fontSize:26,color:C.navy,fontWeight:800,fontFamily:FONT_DISPLAY,letterSpacing:'-0.02em'}}>
+          <h1 style={{margin:0,fontSize:26,color:C.ink,fontWeight:800,fontFamily:FONT_DISPLAY,letterSpacing:'-0.02em'}}>
             Dame<span style={{color:C.gold}}>Perras</span>Perro
           </h1>
           <p style={{margin:'8px 0 0',fontSize:14,color:C.slate}}>El perro que encuentra las perras 🐾</p>
@@ -73,8 +73,8 @@ export default function AuthPage() {
           border:`1px solid ${C.parchmentDark}`}}>
           {(['login','register'] as const).map(m=>(
             <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:'10px',border:'none',
-              cursor:'pointer',background:mode===m?C.navy:C.white,
-              color:mode===m?C.white:C.slate,fontSize:14,fontWeight:600}}>
+              cursor:'pointer',background:mode===m?C.gold:C.white,
+              color:mode===m?T.inkOnAccent:C.slate,fontSize:14,fontWeight:600}}>
               {m==='login'?'Entrar':'Registrarse'}
             </button>
           ))}
@@ -94,7 +94,7 @@ export default function AuthPage() {
           {error&&<div style={{padding:10,background:T.redSoft,borderRadius:6,fontSize:13,color:C.red}}>{error}</div>}
           {ok&&<div style={{padding:10,background:T.greenSoft,borderRadius:6,fontSize:13,color:C.green}}>{ok}</div>}
           <button onClick={submit} disabled={loading||!email||!pass} style={{padding:'12px',
-            background:loading?C.slate:C.gold,color:loading?C.white:C.ink,border:'none',borderRadius:8,
+            background:loading?C.slate:C.gold,color:T.inkOnAccent,border:'none',borderRadius:8,
             fontSize:15,fontWeight:800,cursor:loading?'not-allowed':'pointer',marginTop:4}}>
             {loading?'Cargando…':mode==='login'?'Entrar':'Crear cuenta'}
           </button>

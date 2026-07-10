@@ -68,14 +68,15 @@ export interface Grant {
 }
 
 // Paleta alineada con el kit de marca DamePerrasPerro (lib/theme.ts → T)
+// Dirección "Rastro" (fondo oscuro): tintes translúcidos, no pastel sólido.
 export const STATUS_META: Record<GrantStatus, { label: string; color: string; bg: string; icon: string }> = {
-  pendiente:          { label:'Pendiente',          color:'#B45309', bg:'#FBEFC9',  icon:'⏳' },
-  revisada:           { label:'Revisada',           color:'#121212', bg:'#EFEBE0',  icon:'👁' },
-  en_proceso:         { label:'En proceso',         color:'#7C3AED', bg:'#EDE9FE',  icon:'⚙️' },
-  presentada:         { label:'Presentada',         color:'#2BA84A', bg:'#DDF3E2',  icon:'✅' },
-  resuelta_positiva:  { label:'Concedida 🎉',       color:'#176B2E', bg:'#BBF7D0',  icon:'🏆' },
-  resuelta_negativa:  { label:'Denegada',           color:'#D62828', bg:'#FBE2E2',  icon:'❌' },
-  descartada:         { label:'Descartada',         color:'#6B7280', bg:'#EFEDE6',  icon:'✗'  },
+  pendiente:          { label:'Pendiente',          color:'#C99A3D', bg:'rgba(201,154,61,0.18)',  icon:'⏳' },
+  revisada:           { label:'Revisada',           color:'#C9C6B8', bg:'rgba(241,239,230,0.12)',  icon:'👁' },
+  en_proceso:         { label:'En proceso',         color:'#A78BFA', bg:'rgba(167,139,250,0.18)',  icon:'⚙️' },
+  presentada:         { label:'Presentada',         color:'#6FBE8E', bg:'rgba(111,190,142,0.18)',  icon:'✅' },
+  resuelta_positiva:  { label:'Concedida 🎉',       color:'#7FD9A0', bg:'rgba(111,190,142,0.26)',  icon:'🏆' },
+  resuelta_negativa:  { label:'Denegada',           color:'#D9714F', bg:'rgba(217,113,79,0.18)',  icon:'❌' },
+  descartada:         { label:'Descartada',         color:'#728077', bg:'rgba(241,239,230,0.08)',  icon:'✗'  },
 }
 
 export const TYPE_META: Record<GrantTipo, { label: string; icon: string }> = {

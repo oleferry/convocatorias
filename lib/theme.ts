@@ -1,51 +1,56 @@
 // ─── DESIGN TOKENS · DamePerrasPerro ──────────────────────────────────────────
-// "El perro que encuentra las perras." Marca: directa, canalla, clara, útil.
-// Paleta oficial del kit: negro tinta + oro + papel crema + verde éxito + rojo urgencia.
+// "El perro que encuentra las perras." Dirección "Rastro": fondo pino oscuro,
+// latón mate como acento, menta-bosque para éxito, ladrillo para urgencia.
+// Nada de crema/dorado brillante/serif — ver brand-directions (dirección B).
 export const T = {
-  // Fondos
-  bg:        '#F8F4EC',   // papel crema (kit)
-  bgCard:    '#FFFFFF',
-  bgSidebar: '#121212',   // negro primario (kit)
+  // Fondos — pino oscuro
+  bg:        '#12312A',
+  bgCard:    '#1B4238',
+  bgSidebar: '#0B211B',   // más oscuro que el resto: chrome/sidebar
 
-  // Texto
-  ink:       '#121212',
-  inkMid:    '#3A3A3A',
-  inkLight:  '#6B7280',
-  inkMuted:  '#9CA3AF',
+  // Texto — claro sobre fondo oscuro
+  ink:       '#F1EFE6',
+  inkMid:    '#C9C6B8',
+  inkLight:  '#9CA79E',
+  inkMuted:  '#728077',
 
-  // Acento de marca — ORO (secundario del kit, color de acción principal)
-  gold:      '#E6A800',
-  goldSoft:  '#FBEFC9',
+  // Texto oscuro para usar SOBRE superficies de acento sólidas (botones dorados)
+  inkOnAccent: '#1A1305',
 
-  // Éxito — verde (kit)
-  green:     '#2BA84A',
-  greenSoft: '#DDF3E2',
-  greenDim:  '#176B2E',
+  // Acento de marca — latón/mostaza mate (no dorado brillante)
+  gold:      '#C99A3D',
+  goldSoft:  'rgba(201,154,61,0.18)',
 
-  // Urgencia — rojo (kit)
-  red:       '#D62828',
-  redSoft:   '#FBE2E2',
+  // Éxito — menta-bosque
+  green:     '#6FBE8E',
+  greenSoft: 'rgba(111,190,142,0.18)',
+  greenDim:  '#2F5D45',
 
-  // Compat: "amber" se reasigna al oro de marca (acento en formularios)
-  amber:     '#E6A800',
-  amberSoft: '#FBEFC9',
+  // Urgencia — ladrillo/terracota (semántico, distinto del acento)
+  red:       '#D9714F',
+  redSoft:   'rgba(217,113,79,0.18)',
 
-  // "navy" se reasigna al negro de marca (cabeceras/botones oscuros)
-  navy:      '#121212',
-  navySoft:  '#EFEBE0',
+  // Compat: "amber" se reasigna al mismo acento
+  amber:     '#C99A3D',
+  amberSoft: 'rgba(201,154,61,0.18)',
 
-  // Púrpura IA (se mantiene para señalar "IA")
-  purple:    '#7C3AED',
-  purpleSoft:'#EDE9FE',
+  // "navy" = superficie oscura de chrome (cabeceras, botones secundarios) —
+  // YA NO es el mismo valor que "ink" (que ahora es claro). Solo usar como
+  // fondo, nunca como color de texto (ver inkOnAccent / gold para eso).
+  navy:      '#0F2921',
+  navySoft:  'rgba(15,41,33,0.4)',
+
+  // Púrpura IA (aclarado para contraste sobre fondo oscuro)
+  purple:    '#A78BFA',
+  purpleSoft:'rgba(167,139,250,0.18)',
 
   // Bordes
-  border:    '#E7E2D6',
-  borderMid: '#D8D2C4',
+  border:    'rgba(241,239,230,0.14)',
+  borderMid: 'rgba(241,239,230,0.24)',
 } as const
 
-export const FONT = "'Inter', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
-// Títulos y logotipo del kit
-export const FONT_DISPLAY = "'Bricolage Grotesque', 'Inter', -apple-system, 'Segoe UI', sans-serif"
+export const FONT = "'Barlow', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+export const FONT_DISPLAY = "'Barlow Condensed', 'Barlow', -apple-system, 'Segoe UI', sans-serif"
 
 // ─── URGENCY SYSTEM ───────────────────────────────────────────────────────────
 export function daysLeft(d?: string | null): number | null {

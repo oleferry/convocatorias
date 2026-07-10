@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
   const to = process.env.LEADS_NOTIFY_EMAIL || adminEmails()[0]
   if (key && to) {
     const html = `
-    <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto">
-      <h2 style="color:#121212">🤝 Nuevo contacto de gestoría — landing</h2>
-      <div style="background:#F8F4EC;border-radius:10px;padding:16px">
+    <div style="font-family:Barlow,Arial,sans-serif;max-width:560px;margin:0 auto">
+      <h2 style="color:#1A1A18">🤝 Nuevo contacto de gestoría — landing</h2>
+      <div style="background:#F0F1EC;border-radius:10px;padding:16px">
         <div>👤 <b>${esc(nombre)}</b></div>
         <div>✉️ ${esc(email)}</div>
         <div>📞 ${esc(b.telefono || '—')}</div>

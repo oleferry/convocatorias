@@ -12,16 +12,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
       </head>
       <body style={{
         margin: 0,
-        fontFamily: "'Inter', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
-        background: '#F8F4EC',
+        fontFamily: "'Barlow', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
+        background: '#12312A',
         minHeight: '100vh',
-        color: '#121212',
+        color: '#F1EFE6',
       }}>
         {children}
       </body>

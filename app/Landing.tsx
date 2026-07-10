@@ -29,7 +29,7 @@ function CTAButton({ href, children, primary = true }: { href: string; children:
     <a href={href} style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
       padding: '13px 26px', borderRadius: 10, fontSize: 15, fontWeight: 800, textDecoration: 'none',
-      background: primary ? T.gold : 'transparent', color: primary ? T.ink : T.ink,
+      background: primary ? T.gold : 'transparent', color: primary ? T.inkOnAccent : T.ink,
       border: primary ? 'none' : `1.5px solid ${T.border}`,
     }}>{children}</a>
   )
@@ -77,7 +77,7 @@ function GestoriaForm() {
     } catch { setState('error') }
   }
 
-  const inp: React.CSSProperties = { width: '100%', padding: '11px 13px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', marginTop: 4 }
+  const inp: React.CSSProperties = { width: '100%', padding: '11px 13px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', marginTop: 4, background: T.bgSidebar, color: T.ink }
   const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: T.inkMid }
 
   if (state === 'done') {
@@ -102,7 +102,7 @@ function GestoriaForm() {
         <label style={lbl}>Cuéntanos algo más (opcional)<textarea value={mensaje} onChange={e => setMensaje(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' }} /></label>
         {state === 'error' && <div style={{ color: T.red, fontSize: 13 }}>Algo ha fallado. Prueba otra vez o escríbenos directamente.</div>}
         <button onClick={submit} disabled={state === 'sending' || !nombre || !email} style={{
-          padding: '13px 20px', background: state === 'sending' ? T.inkMuted : T.gold, color: T.ink,
+          padding: '13px 20px', background: state === 'sending' ? T.inkMuted : T.gold, color: T.inkOnAccent,
           border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: state === 'sending' ? 'wait' : 'pointer',
         }}>{state === 'sending' ? 'Enviando…' : 'Quiero recibir leads'}</button>
       </div>
@@ -195,7 +195,7 @@ export default function Landing() {
             </ul>
           </div>
           <div style={{ ...card, border: `2px solid ${T.gold}`, position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -12, right: 20, background: T.gold, color: T.ink, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 12 }}>PRÓXIMAMENTE</div>
+            <div style={{ position: 'absolute', top: -12, right: 20, background: T.gold, color: T.inkOnAccent, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 12 }}>PRÓXIMAMENTE</div>
             <div style={{ fontSize: 13, fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pro</div>
             <div style={{ fontSize: 28, fontWeight: 800, margin: '8px 0' }}>—</div>
             <ul style={{ margin: 0, padding: '0 0 0 18px', color: T.inkMid, fontSize: 14, lineHeight: 1.9 }}>
@@ -227,7 +227,7 @@ export default function Landing() {
 
       {/* CTA FINAL */}
       <div style={{ ...wrap, padding: '20px 24px 72px', textAlign: 'center' }}>
-        <div style={{ ...card, background: T.ink, border: 'none', padding: '48px 24px' }}>
+        <div style={{ ...card, background: T.bgSidebar, border: 'none', padding: '48px 24px' }}>
           <div style={{ fontSize: 'clamp(22px,4vw,30px)', fontWeight: 800, color: '#fff', fontFamily: FONT_DISPLAY, marginBottom: 10 }}>
             No dejes que se te escape ni una perra.
           </div>

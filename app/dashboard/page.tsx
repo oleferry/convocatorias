@@ -206,13 +206,13 @@ function SuggestionCard({ c, saved, onSave, onLead }: { c: any; saved: boolean; 
           <span style={{ fontSize: 12, fontWeight: 700, color: u.color }}>
             {c.fecha_fin ? (u.tier <= 0 ? 'Vencida' : `Hasta ${new Date(c.fecha_fin).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} · ${days}d`) : (c.fuente && c.fuente !== 'bdns' ? '🔁 Consulta el plazo en la web' : 'Sin plazo')}
           </span>
-          {c.bases_url && <a href={c.bases_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.navy, textDecoration: 'none', fontWeight: 600 }}>🔗 Bases</a>}
+          {c.bases_url && <a href={c.bases_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.gold, textDecoration: 'none', fontWeight: 600 }}>🔗 Bases</a>}
           <div style={{ flex: 1 }} />
           <button onClick={onLead} title="Te ponemos en contacto con una gestoría especializada"
             style={{ padding: '7px 12px', background: 'transparent', color: T.purple, border: `1px solid ${T.purple}`, borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>🤝 Quiero ayuda</button>
           {saved
             ? <span style={{ fontSize: 13, color: T.green, fontWeight: 700 }}>✅ Guardada</span>
-            : <button onClick={onSave} style={{ padding: '7px 16px', background: T.gold, color: T.ink, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>+ Guardar</button>}
+            : <button onClick={onSave} style={{ padding: '7px 16px', background: T.gold, color: T.inkOnAccent, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>+ Guardar</button>}
         </div>
       </div>
     </div>
@@ -243,7 +243,7 @@ function LeadModal({ item, user, onClose }: { item: any; user: any; onClose: () 
       setDone(true)
     } catch (e: any) { setErr(e.message || 'Error') } finally { setSending(false) }
   }
-  const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', marginTop: 4 }
+  const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', marginTop: 4, background: T.bgSidebar, color: T.ink }
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(18,18,18,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: T.bgCard, borderRadius: 16, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 12px 48px rgba(0,0,0,0.25)' }}>
@@ -266,7 +266,7 @@ function LeadModal({ item, user, onClose }: { item: any; user: any; onClose: () 
             {err && <div style={{ color: T.red, fontSize: 13, marginTop: 10 }}>{err}</div>}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
               <button onClick={onClose} style={{ padding: '10px 18px', background: 'none', border: `1px solid ${T.border}`, borderRadius: 8, color: T.inkLight, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={submit} disabled={sending || !email} style={{ padding: '10px 22px', background: sending ? T.inkMuted : T.gold, color: T.ink, border: 'none', borderRadius: 8, fontWeight: 800, cursor: sending ? 'wait' : 'pointer' }}>{sending ? 'Enviando…' : 'Solicitar ayuda'}</button>
+              <button onClick={submit} disabled={sending || !email} style={{ padding: '10px 22px', background: sending ? T.inkMuted : T.gold, color: T.inkOnAccent, border: 'none', borderRadius: 8, fontWeight: 800, cursor: sending ? 'wait' : 'pointer' }}>{sending ? 'Enviando…' : 'Solicitar ayuda'}</button>
             </div>
           </>
         )}
@@ -393,13 +393,13 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
         {['daniel@gafasvan.com', 'daniel.paniagua.f@gmail.com'].includes((user?.email || '').toLowerCase()) && (
           <a href="/admin/leads" style={{
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, textDecoration: 'none',
-            padding: '9px 10px', borderRadius: 8, background: 'rgba(230,168,0,0.18)', color: '#F0C550',
-            fontSize: 12.5, fontWeight: 700, outline: '1px solid rgba(230,168,0,0.25)',
+            padding: '9px 10px', borderRadius: 8, background: 'rgba(201,154,61,0.18)', color: '#DFC17A',
+            fontSize: 12.5, fontWeight: 700, outline: '1px solid rgba(201,154,61,0.3)',
           }}>🤝 Leads (admin)</a>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px' }}>
-          <div style={{ width: 30, height: 30, borderRadius: '50%', background: T.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: T.ink }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: T.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: T.inkOnAccent }}>
             {(user?.email || 'A')[0].toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -446,8 +446,8 @@ function Topbar({ search, setSearch, onAdd, onAI }: { search: string; setSearch:
       </button>
       <button onClick={onAdd} style={{
         display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 10,
-        border: 'none', cursor: 'pointer', background: T.gold, color: T.ink, fontSize: 13, fontWeight: 800,
-        boxShadow: '0 2px 8px rgba(230,168,0,0.35)',
+        border: 'none', cursor: 'pointer', background: T.gold, color: T.inkOnAccent, fontSize: 13, fontWeight: 800,
+        boxShadow: '0 2px 8px rgba(201,154,61,0.35)',
       }}>
         + Nueva
       </button>
@@ -466,7 +466,7 @@ function StatsStrip({ grants, activeOrgId }: { grants: Grant[]; activeOrgId: str
   const concedidas = visible.filter(g => g.status === 'resuelta_positiva').length
 
   const stats = [
-    { label: 'Activas', value: active, color: T.navy, bg: T.navySoft },
+    { label: 'Activas', value: active, color: T.gold, bg: T.goldSoft },
     urgent > 0 && { label: 'Urgentes (≤14d)', value: urgent, color: T.red, bg: T.redSoft },
     concedidas > 0 && { label: 'Concedidas', value: concedidas, color: T.green, bg: T.greenSoft },
   ].filter(Boolean) as { label: string; value: number; color: string; bg: string }[]
@@ -590,7 +590,7 @@ function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange, on
           {grant.elegibilidad && (
             <div>
               <div style={sectionLabel}>Elegibilidad</div>
-              <div style={{ padding: '10px 14px', background: T.navySoft, borderRadius: 8, fontSize: 13, color: T.navy, fontWeight: 500 }}>{grant.elegibilidad}</div>
+              <div style={{ padding: '10px 14px', background: T.navySoft, borderRadius: 8, fontSize: 13, color: T.ink, fontWeight: 500 }}>{grant.elegibilidad}</div>
             </div>
           )}
 
@@ -649,7 +649,7 @@ function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange, on
 
           {(grant.url || grant.url_bases) && (
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              {grant.url && <a href={grant.url} target="_blank" rel="noreferrer" style={{ color: T.navy, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>🔗 Ver convocatoria ↗</a>}
+              {grant.url && <a href={grant.url} target="_blank" rel="noreferrer" style={{ color: T.gold, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>🔗 Ver convocatoria ↗</a>}
               {grant.url_bases && <a href={grant.url_bases} target="_blank" rel="noreferrer" style={{ color: T.inkLight, fontSize: 13, textDecoration: 'none' }}>📋 Bases reguladoras ↗</a>}
             </div>
           )}
@@ -1034,7 +1034,7 @@ function MemoriaModal({ state, onClose, onRegenerate }: {
         ) : (
           <div style={{
             whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.7, color: T.inkMid,
-            fontFamily: "'Inter', sans-serif", background: T.bg, border: `1px solid ${T.border}`,
+            fontFamily: FONT, background: T.bg, border: `1px solid ${T.border}`,
             borderRadius: 10, padding: '18px 20px', maxHeight: '58vh', overflowY: 'auto',
           }}>{state.text}</div>
         )}
@@ -1043,8 +1043,8 @@ function MemoriaModal({ state, onClose, onRegenerate }: {
       {!state.loading && !state.error && (
         <div style={{ padding: '0 24px 22px', display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <button onClick={onRegenerate} style={{ padding: '9px 16px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'none', color: T.inkMid, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>🔄 Regenerar</button>
-          <button onClick={download} style={{ padding: '9px 16px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'none', color: T.navy, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⬇ Descargar .md</button>
-          <button onClick={copy} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: T.gold, color: T.ink, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{copied ? '✓ Copiado' : 'Copiar'}</button>
+          <button onClick={download} style={{ padding: '9px 16px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'none', color: T.gold, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⬇ Descargar .md</button>
+          <button onClick={copy} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: T.gold, color: T.inkOnAccent, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{copied ? '✓ Copiado' : 'Copiar'}</button>
         </div>
       )}
     </div>
@@ -1270,7 +1270,7 @@ export default function Dashboard() {
                 {([['grid', '⊞'], ['list', '☰']] as const).map(([v, icon]) => (
                   <button key={v} onClick={() => setView(v)} style={{
                     width: 32, height: 32, borderRadius: 7, border: 'none', cursor: 'pointer',
-                    background: view === v ? T.navySoft : 'transparent', color: view === v ? T.navy : T.inkMuted, fontSize: 14,
+                    background: view === v ? T.goldSoft : 'transparent', color: view === v ? T.gold : T.inkMuted, fontSize: 14,
                   }}>{icon}</button>
                 ))}
               </div>
@@ -1299,8 +1299,8 @@ export default function Dashboard() {
                       : 'Añade una manualmente, pega un link o usa la búsqueda con IA.'}
                   </div>
                   {orgs.length === 0
-                    ? <a href="/organizations" style={{ padding: '10px 24px', background: T.navy, color: '#FFF', borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: 'none', display: 'inline-block' }}>Crear perfil de empresa</a>
-                    : !search && filter === 'all' && <button onClick={() => setModal('add')} style={{ padding: '10px 24px', background: T.gold, color: T.ink, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>+ Añadir convocatoria</button>}
+                    ? <a href="/organizations" style={{ padding: '10px 24px', background: T.gold, color: T.inkOnAccent, borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: 'none', display: 'inline-block' }}>Crear perfil de empresa</a>
+                    : !search && filter === 'all' && <button onClick={() => setModal('add')} style={{ padding: '10px 24px', background: T.gold, color: T.inkOnAccent, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>+ Añadir convocatoria</button>}
                 </div>
               ) : visible.map(g => (
                 <GrantCard key={g.id} grant={g} org={getOrg(g.org_id)} onClick={() => setSelected(g)} compact={view === 'list'} />
