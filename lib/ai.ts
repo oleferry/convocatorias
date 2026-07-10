@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { Organization, Grant } from './types'
+import { logApiUsage } from './costs'
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -10,17 +11,21 @@ function extractJSON(text: string, bracket: '{'|'[') {
   return JSON.parse(text.slice(s, e + 1))
 }
 
-async function callAI(system: string, user: string, search = false, maxTokens = 1500) {
-  const body: any = { model:'claude-sonnet-4-6', max_tokens:maxTokens, system, messages:[{role:'user',content:user}] }
+// Llama a Claude y registra el coste real (tokens de la respuesta) en
+// api_usage_log — best-effort, nunca bloquea ni rompe la llamada.
+async function callAI(system: string, user: string, search = false, maxTokens = 1500, feature = 'unknown', ctx: { userId?: string | null; orgId?: string | null } = {}) {
+  const model = 'claude-sonnet-4-6'
+  const body: any = { model, max_tokens:maxTokens, system, messages:[{role:'user',content:user}] }
   if (search) body.tools = [{ type:'web_search_20250305', name:'web_search' }]
   const r = await ai.messages.create(body)
+  logApiUsage({ feature, model, usage: r.usage as any, userId: ctx.userId, orgId: ctx.orgId }).catch(() => {})
   return (r.content as any[]).map(b => b.type==='text' ? b.text : '').join('\n')
 }
 
 export async function analyzeGrant(input: string) {
   const sys = `Experto en subvenciones españolas. Devuelve SOLO JSON sin backticks:
 {"titulo":"","organismo":"","tipo":"publica|concurso|privada|europeo","ambito":"local|autonómico|nacional|europeo|internacional","importe_max":"","importe_min":"","cofinanciacion":"","plazo_solicitud":"YYYY-MM-DD o null","plazo_ejecucion":"YYYY-MM-DD o null","fecha_publicacion":"YYYY-MM-DD o null","resumen":"2-3 frases","requisitos":"uno por línea","documentacion":"documentos requeridos, uno por línea","url":"url o null","url_bases":"url bases reguladoras o null","elegibilidad":""}`
-  const text = await callAI(sys, `Analiza esta convocatoria:\n${input}`, true)
+  const text = await callAI(sys, `Analiza esta convocatoria:\n${input}`, true, 1500, 'analyze')
   return extractJSON(text.replace(/```json|```/g,'').trim(), '{')
 }
 
@@ -42,7 +47,7 @@ Solo convocatorias abiertas o próximas a abrir.`
 
 Ya registradas (no duplicar): ${existingTitles.slice(0,20).join(', ') || 'ninguna'}
 
-Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`, true)
+Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`, true, 1500, 'search_web', { userId: (org as any).user_id, orgId: (org as any).id })
 
   try { return extractJSON(text.replace(/```json|```/g,'').trim(), '[') }
   catch { return [] }
@@ -66,7 +71,7 @@ No inventes programas ni URLs. Si no encuentras suficientes reales, devuelve men
 - Keywords: ${org.keywords || '—'}
 
 Busca premios, concursos y ayudas PRIVADAS relevantes para este negocio.`
-  const text = await callAI(sys, user, true, 4000)
+  const text = await callAI(sys, user, true, 4000, 'descubrir_privados', { userId: (org as any).user_id, orgId: (org as any).id })
   const clean = text.replace(/```json|```/g, '').trim()
   try { return extractJSON(clean, '[') } catch { /* puede venir truncado */ }
   // Recuperación: rescata los objetos {...} completos aunque falte cerrar el array.
@@ -124,9 +129,11 @@ Estructura:
 
 Devuelve SOLO la memoria en Markdown.`
 
+  const model = 'claude-sonnet-4-6'
   const r = await ai.messages.create({
-    model: 'claude-sonnet-4-6', max_tokens: 3000, system: sys,
+    model, max_tokens: 3000, system: sys,
     messages: [{ role: 'user', content: u }],
   })
+  logApiUsage({ feature: 'memoria', model, usage: r.usage as any, userId: (grant as any).user_id, orgId: (grant as any).org_id }).catch(() => {})
   return (r.content as any[]).map(b => (b.type === 'text' ? b.text : '')).join('\n').trim()
 }

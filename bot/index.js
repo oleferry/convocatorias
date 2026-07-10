@@ -312,6 +312,24 @@ function extractJSON(text, bracket) {
   return JSON.parse(text.slice(s, e + 1))
 }
 
+// Registra el coste real de la llamada (espejo de lib/costs.ts) — best-effort.
+const PRICING = { 'claude-sonnet-4-6': { in: 3, out: 15 } }
+async function logApiUsage(feature, model, usage, userId, orgId) {
+  try {
+    const p = PRICING[model] || PRICING['claude-sonnet-4-6']
+    const inTok = (usage && usage.input_tokens) || 0
+    const outTok = (usage && usage.output_tokens) || 0
+    const cacheTok = ((usage && usage.cache_creation_input_tokens) || 0) + ((usage && usage.cache_read_input_tokens) || 0)
+    const cost = ((inTok + cacheTok) * p.in + outTok * p.out) / 1_000_000
+    await sb.from('api_usage_log').insert({
+      provider: 'anthropic', feature, source: 'bot', model,
+      input_tokens: inTok, output_tokens: outTok, cache_creation_tokens: usage?.cache_creation_input_tokens || 0,
+      cache_read_tokens: usage?.cache_read_input_tokens || 0, cost_usd: cost,
+      user_id: userId || null, org_id: orgId || null,
+    })
+  } catch (e) { console.warn('[logApiUsage]', e.message) }
+}
+
 async function searchGrantsForProfile(org, existingTitles) {
   const sys = `Experto en subvenciones españolas. Busca convocatorias REALES y ACTUALES.
 Consulta BDNS (infosubvenciones.es), BOE, boletines autonómicos y fondos europeos.
@@ -336,13 +354,14 @@ Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`
     messages: [{ role: 'user', content: user }],
     tools: [{ type: 'web_search_20250305', name: 'web_search' }],
   })
+  logApiUsage('search_web', 'claude-sonnet-4-6', r.usage, org.user_id, org.id).catch(() => {})
   const text = r.content.map(b => (b.type === 'text' ? b.text : '')).join('\n')
   try { return extractJSON(text.replace(/```json|```/g, '').trim(), '[') }
   catch { return [] }
 }
 
 // Analiza un link/texto suelto (concurso, beca, premio…) → objeto convocatoria
-async function analyzeGrant(input) {
+async function analyzeGrant(input, userId) {
   const sys = `Experto en subvenciones, concursos, premios y becas en España. Devuelve SOLO JSON sin backticks:
 {"titulo":"","organismo":"","tipo":"publica|concurso|privada|europeo","ambito":"local|autonómico|nacional|europeo|internacional","importe_max":"","plazo_solicitud":"YYYY-MM-DD o null","resumen":"2-3 frases","requisitos":"uno por línea","url":"url o null","elegibilidad":""}`
   const r = await ai.messages.create({
@@ -350,6 +369,7 @@ async function analyzeGrant(input) {
     messages: [{ role: 'user', content: `Analiza esto y extrae la convocatoria:\n${input}` }],
     tools: [{ type: 'web_search_20250305', name: 'web_search' }],
   })
+  logApiUsage('analyze', 'claude-sonnet-4-6', r.usage, userId, null).catch(() => {})
   const text = r.content.map(b => (b.type === 'text' ? b.text : '')).join('\n')
   return extractJSON(text.replace(/```json|```/g, '').trim(), '{')
 }
@@ -371,7 +391,7 @@ bot.on('message', async (msg) => {
 
   send(chatId, '🐾 Déjame oler esto…')
   try {
-    const p = await analyzeGrant(text)
+    const p = await analyzeGrant(text, user.id)
     const { data: orgs } = await sb.from('organizations').select('id')
       .eq('user_id', user.id).eq('is_archived', false)
       .order('is_default', { ascending: false }).order('created_at')

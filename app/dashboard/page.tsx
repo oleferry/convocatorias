@@ -391,11 +391,18 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
         </button>
 
         {['daniel@gafasvan.com', 'daniel.paniagua.f@gmail.com'].includes((user?.email || '').toLowerCase()) && (
-          <a href="/admin/leads" style={{
-            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, textDecoration: 'none',
-            padding: '9px 10px', borderRadius: 8, background: 'rgba(201,154,61,0.18)', color: '#DFC17A',
-            fontSize: 12.5, fontWeight: 700, outline: '1px solid rgba(201,154,61,0.3)',
-          }}>🤝 Leads (admin)</a>
+          <>
+            <a href="/admin/leads" style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, textDecoration: 'none',
+              padding: '9px 10px', borderRadius: 8, background: 'rgba(201,154,61,0.18)', color: '#DFC17A',
+              fontSize: 12.5, fontWeight: 700, outline: '1px solid rgba(201,154,61,0.3)',
+            }}>🤝 Leads (admin)</a>
+            <a href="/admin/costs" style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, textDecoration: 'none',
+              padding: '9px 10px', borderRadius: 8, background: 'rgba(201,154,61,0.18)', color: '#DFC17A',
+              fontSize: 12.5, fontWeight: 700, outline: '1px solid rgba(201,154,61,0.3)',
+            }}>💸 Costes (admin)</a>
+          </>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px' }}>
