@@ -1178,7 +1178,7 @@ export default function Dashboard() {
   const loadSuggestions = useCallback(async (orgId: string) => {
     setLoadingSug(true)
     try {
-      const res = await fetch(`/api/suggestions?orgId=${orgId}`)
+      const res = await fetch(`/api/suggestions?orgId=${orgId}`, { cache: 'no-store' })
       const data = await res.json()
       setSuggestions(res.ok ? (data.suggestions || []) : [])
     } catch { setSuggestions([]) }
