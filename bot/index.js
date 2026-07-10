@@ -79,13 +79,18 @@ function send(chatId, text, extra = {}) {
 
 // Busca el usuario web vinculado a este chat de Telegram
 async function getUser(chatId) {
-  const { data } = await sb.from('users').select('*').eq('telegram_id', chatId).maybeSingle()
+  const { data, error } = await sb.from('users').select('*').eq('telegram_id', chatId).maybeSingle()
+  if (error) console.error('[getUser] Supabase error:', error.message)
   return data || null
 }
 
 // Canjea un token de vinculación generado en el dashboard (/start <token>)
 async function linkByToken(chatId, token) {
-  const { data: row } = await sb.from('telegram_link_tokens').select('*').eq('token', token).maybeSingle()
+  const { data: row, error } = await sb.from('telegram_link_tokens').select('*').eq('token', token).maybeSingle()
+  if (error) console.error('[linkByToken] Supabase error (revisa SUPABASE_SERVICE_ROLE_KEY/URL en Railway):', error.message)
+  if (!row) console.warn('[linkByToken] Token no encontrado en BD:', token)
+  else if (row.used_at) console.warn('[linkByToken] Token ya usado:', token)
+  else if (new Date(row.expires_at) < new Date()) console.warn('[linkByToken] Token caducado:', token, row.expires_at)
   if (!row || row.used_at || new Date(row.expires_at) < new Date()) {
     return send(chatId, '⌛ Ese enlace ya no vale (caducan a los 15 min). Genera uno nuevo desde tu panel → <b>"Conectar Telegram"</b>.')
   }
@@ -430,3 +435,11 @@ cron.schedule('0 9 * * *', runDeadlineAlerts, { timezone: 'Europe/Madrid' })
 // ── Arranque ───────────────────────────────────────────────────
 bot.on('polling_error', (e) => console.error('[polling_error]', e.code, e.message))
 console.log('🤖 Bot de Convocatorias en marcha. Alertas diarias a las 09:00 Europe/Madrid.')
+
+// Ping de arranque: confirma que la clave de Supabase es la correcta (service_role,
+// no anon) — si es la anon, RLS bloquea las lecturas en silencio y todo "parece"
+// caducado/vacío aunque los datos existan.
+sb.from('telegram_link_tokens').select('token', { count: 'exact', head: true }).then(({ count, error }) => {
+  if (error) console.error('❌ Supabase no responde bien (revisa SUPABASE_SERVICE_ROLE_KEY/URL):', error.message)
+  else console.log(`✅ Supabase OK. Tokens de vinculación pendientes: ${count ?? 0}`)
+})
