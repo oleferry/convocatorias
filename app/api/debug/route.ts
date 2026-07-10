@@ -21,8 +21,8 @@ export async function GET() {
     sb.from('convocatorias_publicas').select('*').neq('fuente', 'bdns').limit(150),
   ])
   const pool = [...(bdns.data || []), ...(radar.data || [])] as PublicGrantRow[]
-  const hits = pool.map(c => ({ c, m: matchGrant(c, o, today) })).filter(x => x.m.match)
-    .filter(x => (x.c.nivel1 || '').toUpperCase() === 'ESTATAL')
-    .map(x => ({ titulo: tituloCorto(x.c.titulo), organo: x.c.organo, regiones: (x.c as any).regiones }))
-  return NextResponse.json({ org: { ccaa: o.ccaa }, n: hits.length, hits })
+  const allHits = pool.map(c => ({ c, m: matchGrant(c, o, today) })).filter(x => x.m.match)
+  const hits = allHits.filter(x => (x.c.nivel1 || '').toUpperCase() === 'ESTATAL')
+    .map(x => ({ titulo: tituloCorto(x.c.titulo), organo: x.c.organo, regiones: (x.c as any).regiones, fuente: x.c.fuente }))
+  return NextResponse.json({ org: { ccaa: o.ccaa }, poolTotal: pool.length, allHitsTotal: allHits.length, n: hits.length, hits })
 }
