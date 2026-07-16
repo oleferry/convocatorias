@@ -6,6 +6,7 @@ import type { Organization, Grant, GrantStatus } from '@/lib/types'
 import { STATUS_META, TYPE_META } from '@/lib/types'
 import { T, FONT, FONT_DISPLAY, daysLeft, urgency } from '@/lib/theme'
 import { publicToGrant, formatEuro, tituloCorto } from '@/lib/matching'
+import { isAdminEmail } from '@/lib/admin'
 
 // Paleta de formularios derivada de los tokens de diseño (compatibilidad con el
 // código heredado de GrantForm / DiscoveryPanel).
@@ -404,7 +405,7 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, hideClo
           {tgLinked ? 'Telegram conectado' : 'Conectar Telegram'}
         </button>
 
-        {['daniel@gafasvan.com', 'daniel.paniagua.f@gmail.com'].includes((user?.email || '').toLowerCase()) && (
+        {isAdminEmail(user?.email) && (
           <>
             <a href="/admin/leads" style={{
               display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, textDecoration: 'none',
