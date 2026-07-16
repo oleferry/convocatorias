@@ -83,6 +83,36 @@ Busca premios, concursos y ayudas PRIVADAS relevantes para este negocio.`
   } catch { return [] }
 }
 
+// ─── RESUMEN DE LA CONVOCATORIA (bases) ────────────────────────────────────────
+// Resumen BREVE y barato (pocos tokens, sin adornos) de la convocatoria en sí:
+// plazos, importe, quién puede pedirlo, condiciones, para qué es. Se dispara
+// solo a petición del usuario (nunca automático) para controlar el coste.
+export async function generateResumenConvocatoria(grant: Grant): Promise<string> {
+  const sys = `Resumes convocatorias de ayudas, subvenciones, premios y concursos españoles para que un empresario entienda en 30 segundos si le interesa.
+Devuelve SOLO Markdown, MUY breve (máximo 120 palabras en total), con exactamente estas secciones (usa estos títulos y emojis tal cual):
+## 📅 Plazo
+## 💰 Importe
+## 👥 Quién puede solicitarlo
+## ✅ Condiciones principales
+## 🎯 Para qué es
+Cada sección: 1-2 frases cortas o una lista de 2-3 puntos, nunca párrafos largos. Si un dato no está disponible ni lo puedes confirmar, escribe "No especificado" — no inventes cifras ni fechas.`
+
+  const u = `Resume esta convocatoria:
+- Título: ${grant.titulo}
+- Organismo: ${grant.organismo || '—'}
+- Importe máximo: ${grant.importe_max || '—'}
+- Plazo de solicitud: ${grant.plazo_solicitud || '—'}
+- Finalidad/resumen conocido: ${grant.resumen || '—'}
+- Elegibilidad conocida: ${grant.elegibilidad || '—'}
+- Requisitos conocidos: ${grant.requisitos || '—'}
+- URL de las bases: ${grant.url_bases || grant.url || 'no disponible'}
+
+Si la URL de las bases está disponible y los datos anteriores son insuficientes, consúltala para confirmar fechas e importes reales. No inventes nada que no puedas confirmar.`
+
+  const text = await callAI(sys, u, true, 700, 'resumen', { userId: (grant as any).user_id, orgId: (grant as any).org_id })
+  return text.trim()
+}
+
 // ─── MEMORIA v1 ───────────────────────────────────────────────────────────────
 // Borrador de memoria técnica/descriptiva para solicitar la ayuda. Tono PROFESIONAL
 // (es un documento oficial, no la voz de marca). Devuelve Markdown.

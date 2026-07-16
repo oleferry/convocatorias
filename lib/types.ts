@@ -63,6 +63,8 @@ export interface Grant {
   match_reason?: string
   memoria?: string
   memoria_updated_at?: string
+  resumen_ia?: string
+  resumen_ia_updated_at?: string
   created_at: string
   updated_at: string
 }

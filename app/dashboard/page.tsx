@@ -276,9 +276,10 @@ function LeadModal({ item, user, onClose }: { item: any; user: any; onClose: () 
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
-function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants, user, onSignOut, tgLinked, onConnectTelegram }: {
+function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, hideClosed, setHideClosed, grants, user, onSignOut, tgLinked, onConnectTelegram }: {
   orgs: Organization[]; activeOrgId: string | null; setActiveOrgId: (id: string | null) => void
-  filter: string; setFilter: (f: string) => void; grants: Grant[]; user: any; onSignOut: () => void
+  filter: string; setFilter: (f: string) => void; hideClosed: boolean; setHideClosed: (b: boolean) => void
+  grants: Grant[]; user: any; onSignOut: () => void
   tgLinked: boolean; onConnectTelegram: () => void
 }) {
   const visibleByOrg = grants.filter(g => !activeOrgId || g.org_id === activeOrgId)
@@ -286,6 +287,7 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
     acc[k] = visibleByOrg.filter(g => g.status === k).length
     return acc
   }, {} as Record<string, number>)
+  const closedCount = (statCounts['descartada'] || 0) + (statCounts['resuelta_negativa'] || 0)
 
   return (
     <aside style={{
@@ -357,7 +359,9 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
           Estado
         </div>
         {[['all', 'Todas'], ...(Object.entries(STATUS_META).map(([k, v]) => [k, v.label]) as [string, string][])].map(([k, label]) => {
-          const count = k === 'all' ? visibleByOrg.length : (statCounts[k] || 0)
+          const count = k === 'all'
+            ? (hideClosed ? visibleByOrg.length - closedCount : visibleByOrg.length)
+            : (statCounts[k] || 0)
           if (k !== 'all' && count === 0) return null
           const active = filter === k
           const s = k !== 'all' ? STATUS_META[k as GrantStatus] : null
@@ -373,6 +377,16 @@ function Sidebar({ orgs, activeOrgId, setActiveOrgId, filter, setFilter, grants,
             </button>
           )
         })}
+        {closedCount > 0 && (
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '7px 8px',
+            cursor: 'pointer', fontSize: 11.5, color: 'rgba(255,255,255,0.45)',
+          }}>
+            <input type="checkbox" checked={hideClosed} onChange={e => setHideClosed(e.target.checked)}
+              style={{ accentColor: T.gold, cursor: 'pointer' }} />
+            Ocultar descartadas y denegadas
+          </label>
+        )}
       </div>
 
       {/* Bottom user area */}
@@ -494,9 +508,9 @@ function StatsStrip({ grants, activeOrgId }: { grants: Grant[]; activeOrgId: str
 }
 
 // ─── DETAIL PANEL (slide-in) ──────────────────────────────────────────────────
-function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange, onMemoria }: {
+function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange, onMemoria, onResumen }: {
   grant: Grant; org?: Organization; onClose: () => void; onEdit: () => void
-  onDelete: () => void; onStatusChange: (s: GrantStatus) => void; onMemoria: () => void
+  onDelete: () => void; onStatusChange: (s: GrantStatus) => void; onMemoria: () => void; onResumen: () => void
 }) {
   const days = daysLeft(grant.plazo_solicitud)
   const u = urgency(days)
@@ -548,13 +562,22 @@ function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange, on
 
         {/* Body */}
         <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 22, flex: 1 }}>
-          <button onClick={onMemoria} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: '12px 16px', borderRadius: 10, border: `1px solid ${T.purple}33`, cursor: 'pointer',
-            background: T.purpleSoft, color: T.purple, fontSize: 14, fontWeight: 700,
-          }}>
-            {grant.memoria ? '📄 Ver memoria (IA)' : '✨ Prepárame una memoria con IA'}
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={onResumen} style={{
+              flex: '1 1 200px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '12px 16px', borderRadius: 10, border: `1px solid ${T.gold}33`, cursor: 'pointer',
+              background: T.goldSoft, color: T.gold, fontSize: 14, fontWeight: 700,
+            }}>
+              {grant.resumen_ia ? '📝 Ver resumen de las bases' : '📝 Resumen de las bases (IA)'}
+            </button>
+            <button onClick={onMemoria} style={{
+              flex: '1 1 200px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '12px 16px', borderRadius: 10, border: `1px solid ${T.purple}33`, cursor: 'pointer',
+              background: T.purpleSoft, color: T.purple, fontSize: 14, fontWeight: 700,
+            }}>
+              {grant.memoria ? '📄 Ver memoria (IA)' : '✨ Prepárame una memoria con IA'}
+            </button>
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {grant.importe_max && (
@@ -1001,9 +1024,10 @@ function DiscoveryPanel({ orgs, activeOrg, existingGrants, onAddGrant, onClose }
 }
 
 // ─── MEMORIA MODAL ────────────────────────────────────────────────────────────
-function MemoriaModal({ state, onClose, onRegenerate }: {
+function MemoriaModal({ state, onClose, onRegenerate, title = '✨ Memoria — borrador', subtitle = 'Generada con IA. Revísala y complétala antes de presentarla.', loadingLabel = 'Redactando tu memoria…', downloadName = 'memoria.md' }: {
   state: { loading: boolean; text: string; error: string }
   onClose: () => void; onRegenerate: () => void
+  title?: string; subtitle?: string; loadingLabel?: string; downloadName?: string
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -1014,7 +1038,7 @@ function MemoriaModal({ state, onClose, onRegenerate }: {
     const blob = new Blob([state.text], { type: 'text/markdown;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = 'memoria.md'
+    a.download = downloadName
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -1023,8 +1047,8 @@ function MemoriaModal({ state, onClose, onRegenerate }: {
     <div>
       <div style={{ padding: '20px 24px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, color: T.ink, fontFamily: FONT_DISPLAY }}>✨ Memoria — borrador</h2>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: T.inkLight }}>Generada con IA. Revísala y complétala antes de presentarla.</p>
+          <h2 style={{ margin: 0, fontSize: 18, color: T.ink, fontFamily: FONT_DISPLAY }}>{title}</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: T.inkLight }}>{subtitle}</p>
         </div>
         <button onClick={onClose} style={{ background: T.bg, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 16, color: T.inkLight }}>×</button>
       </div>
@@ -1033,7 +1057,7 @@ function MemoriaModal({ state, onClose, onRegenerate }: {
         {state.loading ? (
           <div style={{ textAlign: 'center', padding: '48px 0', color: T.inkLight }}>
             <div style={{ fontSize: 34, marginBottom: 12 }}>🐾</div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Redactando tu memoria…</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{loadingLabel}</div>
             <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 4 }}>Suele tardar 10-20 segundos</div>
           </div>
         ) : state.error ? (
@@ -1068,6 +1092,7 @@ export default function Dashboard() {
   const [modal, setModal] = useState<string | null>(null)
   const [selected, setSelected] = useState<Grant | null>(null)
   const [filter, setFilter] = useState('all')
+  const [hideClosed, setHideClosed] = useState(true)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [mode, setMode] = useState<'grants' | 'suggestions'>('grants')
@@ -1076,6 +1101,7 @@ export default function Dashboard() {
   const [savedSug, setSavedSug] = useState<Set<string>>(new Set())
   const [leadFor, setLeadFor] = useState<any>(null)
   const [memoria, setMemoria] = useState<{ open: boolean; loading: boolean; text: string; error: string } | null>(null)
+  const [resumenIA, setResumenIA] = useState<{ open: boolean; loading: boolean; text: string; error: string } | null>(null)
   const [tgLinked, setTgLinked] = useState(false)
   const router = useRouter()
   const sb = createClient()
@@ -1216,6 +1242,26 @@ export default function Dashboard() {
     else runMemoria(g.id)
   }
 
+  async function runResumen(grantId: string) {
+    setResumenIA({ open: true, loading: true, text: '', error: '' })
+    try {
+      const res = await fetch('/api/resumen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grantId }) })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Error')
+      setResumenIA({ open: true, loading: false, text: data.resumen, error: '' })
+      setGrants(gs => gs.map(x => x.id === grantId ? { ...x, resumen_ia: data.resumen } : x))
+    } catch (e: any) {
+      setResumenIA({ open: true, loading: false, text: '', error: e?.message || 'No se pudo generar el resumen.' })
+    }
+  }
+
+  function handleResumen() {
+    if (!selected) return
+    const g = grants.find(x => x.id === selected.id) || selected
+    if (g.resumen_ia) setResumenIA({ open: true, loading: false, text: g.resumen_ia, error: '' })
+    else runResumen(g.id)
+  }
+
   async function handleSaveSuggestion(c: any) {
     const grant = publicToGrant(c, activeOrgId, c.matchReason)
     const { data } = await sb.from('grants').insert({ ...grant, user_id: user.id }).select().single()
@@ -1235,6 +1281,7 @@ export default function Dashboard() {
 
   const visible = visibleByOrg
     .filter(g => filter === 'all' || g.status === filter)
+    .filter(g => filter !== 'all' || !hideClosed || !['descartada', 'resuelta_negativa'].includes(g.status))
     .filter(g => !search || [g.titulo, g.organismo, g.resumen, g.elegibilidad].some(f => f && f.toLowerCase().includes(search.toLowerCase())))
 
   if (loading) return (
@@ -1244,7 +1291,8 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: FONT, fontSize: 14 }}>
       <Sidebar orgs={orgs} activeOrgId={activeOrgId} setActiveOrgId={setActiveOrgId}
-        filter={filter} setFilter={setFilter} grants={grants} user={user} onSignOut={handleSignOut}
+        filter={filter} setFilter={setFilter} hideClosed={hideClosed} setHideClosed={setHideClosed}
+        grants={grants} user={user} onSignOut={handleSignOut}
         tgLinked={tgLinked} onConnectTelegram={handleConnectTelegram} />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -1374,6 +1422,7 @@ export default function Dashboard() {
           onDelete={handleDelete}
           onStatusChange={handleStatusChange}
           onMemoria={handleMemoria}
+          onResumen={handleResumen}
         />
       )}
 
@@ -1399,6 +1448,14 @@ export default function Dashboard() {
         <Modal onClose={() => setMemoria(null)} wide>
           <MemoriaModal state={memoria} onClose={() => setMemoria(null)}
             onRegenerate={() => selected && runMemoria(selected.id)} />
+        </Modal>
+      )}
+      {resumenIA?.open && (
+        <Modal onClose={() => setResumenIA(null)} wide>
+          <MemoriaModal state={resumenIA} onClose={() => setResumenIA(null)}
+            onRegenerate={() => selected && runResumen(selected.id)}
+            title="📋 Resumen de la convocatoria" subtitle="Plazos, importe, condiciones y a quién va dirigida."
+            loadingLabel="Resumiendo las bases…" downloadName="resumen.md" />
         </Modal>
       )}
     </div>
