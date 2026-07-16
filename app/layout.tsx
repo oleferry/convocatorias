@@ -1,8 +1,35 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
+import { Analytics } from '@vercel/analytics/react'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dameperrasperro.es'
+const TITLE = 'DamePerrasPerro — El perro que encuentra las perras'
+const DESCRIPTION = 'La IA que rastrea ayudas, subvenciones y convocatorias antes de que se te escapen.'
 
 export const metadata: Metadata = {
-  title: 'DamePerrasPerro — El perro que encuentra las perras',
-  description: 'La IA que rastrea ayudas, subvenciones y convocatorias antes de que se te escapen.',
+  metadataBase: new URL(APP_URL),
+  title: { default: TITLE, template: '%s · DamePerrasPerro' },
+  description: DESCRIPTION,
+  icons: { icon: '/logo.png', apple: '/logo.png' },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: APP_URL,
+    siteName: 'DamePerrasPerro',
+    locale: 'es_ES',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#12312A',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         color: '#F1EFE6',
       }}>
         {children}
+        <Analytics />
       </body>
     </html>
   )
