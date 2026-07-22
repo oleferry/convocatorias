@@ -58,10 +58,14 @@ Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`, true
 // perfil. Devuelve un array para volcar al catálogo (fuente='privada').
 export async function discoverPrivateGrants(org: Organization): Promise<any[]> {
   const sys = `Eres un experto en ayudas, premios y concursos PRIVADOS en España: fundaciones (la Caixa, BBVA, Repsol, Botín…), bancos, Cámaras de Comercio, grandes empresas y asociaciones sectoriales/patronales.
-Busca en la web programas PRIVADOS (NO públicos del BOE/BDNS) REALES y ACTUALES que encajen con el perfil. Incluye premios y ayudas para COMERCIO y pyme tradicional y para el sector concreto del perfil, no solo startups tecnológicas.
+Busca en la web programas PRIVADOS (NO públicos, NO del BOE/BDNS, NO sanitarios ni prestaciones de la administración) REALES y ACTUALES que encajen con el perfil. Incluye premios y ayudas para COMERCIO y pyme tradicional y para el sector concreto del perfil, no solo startups tecnológicas.
+Reglas de relevancia (estrictas):
+- Cada resultado debe estar dirigido específicamente a empresas del sector/actividad indicados, no solo "pymes en general" ni resultados de otro sector que hayas encontrado de paso.
+- Si buscas y no encuentras premios/ayudas realmente específicos para este sector y actividad, devuelve un array vacío []. Es preferible devolver menos (o ninguno) que rellenar con resultados de otro sector o de un colectivo profesional distinto.
+- Descarta cualquier programa público, sanitario, asistencial o de la administración (aunque no esté en el BOE/BDNS): solo cuentan iniciativas de entidades privadas (empresas, fundaciones, bancos, patronales, colegios profesionales del MISMO sector).
 Devuelve SOLO un array JSON sin backticks ni texto alrededor, máximo 6, con programas reales y su web oficial:
 [{"nombre":"","entidad":"","finalidad":"1 frase breve (máx 180 caracteres) con palabras clave del sector","beneficiarios":["máx 3, breves"],"ambito":"nacional|autonómico","url":"https://web-oficial-real"}]
-No inventes programas ni URLs. Si no encuentras suficientes reales, devuelve menos.`
+No inventes programas ni URLs.`
   const user = `Perfil de la empresa:
 - Entidad: ${org.tipo_entidad} "${org.name}"
 - CCAA: ${org.ccaa}${org.municipio ? ` (${org.municipio})` : ''}

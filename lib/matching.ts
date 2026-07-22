@@ -38,18 +38,18 @@ export interface PublicGrantRow {
 export type MatchTier = 'sector' | 'elegible'
 export interface MatchResult { match: boolean; score: number; reasons: string[]; tier: MatchTier | null }
 
-function strip(s: string): string {
+export function strip(s: string): string {
   return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
-function tokens(s?: string | null): string[] {
+export function tokens(s?: string | null): string[] {
   return strip(s || '')
     .split(/[^a-z0-9+]+/)
     .filter(t => t.length >= 4)
 }
 
 // Palabras demasiado genéricas para servir de keyword discriminante.
-const STOP_TOKENS = new Set([
+export const STOP_TOKENS = new Set([
   'comercio', 'menor', 'mayor', 'establecimientos', 'especializados', 'productos',
   'otros', 'otras', 'actividad', 'actividades', 'servicios', 'empresa', 'empresas',
   'general', 'varios', 'diversos',

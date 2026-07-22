@@ -5,7 +5,23 @@
 //  del perfil para que el matching los muestre en "Para tu sector".
 // ================================================================
 import { discoverPrivateGrants } from './ai'
+import { strip, tokens, STOP_TOKENS } from './matching'
 import type { Organization } from './types'
+
+// Red de seguridad: aunque el prompt pida resultados específicos del sector,
+// la IA a veces devuelve programas de otro sector (o públicos/sanitarios) para
+// rellenar. Antes de estampar el sector del perfil sobre el resultado (lo que
+// lo haría aparecer como "tu sector encaja" para CUALQUIER negocio con ese
+// mismo CNAE), exigimos que el propio texto del resultado comparta al menos
+// una palabra significativa con el perfil que lo buscó.
+function esRelevante(item: any, org: any): boolean {
+  const profileTokens = new Set([...tokens(org.keywords), ...tokens(org.actividad), ...tokens(org.cnae_desc), ...tokens(org.iae_desc)])
+  for (const t of STOP_TOKENS) profileTokens.delete(t)
+  if (!profileTokens.size) return true // sin datos de perfil que comparar: no bloqueamos
+  const hay = strip([item.nombre, item.finalidad, ...(Array.isArray(item.beneficiarios) ? item.beneficiarios : [])].join(' '))
+  for (const t of profileTokens) if (hay.includes(t)) return true
+  return false
+}
 
 function slug(s: string): string {
   return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -58,6 +74,7 @@ export async function syncDescubrimiento(sb: any, opts: { max?: number; reset?: 
     const seenKeys = new Set<string>()
     for (const it of (items || [])) {
       if (!it || !it.url || !it.nombre) continue
+      if (!esRelevante(it, o)) { console.warn('[descubrir] descartado por baja relevancia:', it.nombre); continue }
       const key = progKey(String(it.nombre))
       if (seenKeys.has(key)) continue // dedup dentro del mismo lote
       seenKeys.add(key)
