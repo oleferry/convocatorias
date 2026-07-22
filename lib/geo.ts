@@ -70,6 +70,17 @@ export function resolveLocalGeo(nivel2?: string | null, nivel3?: string | null, 
   return null
 }
 
+// ── Slugs de CCAA para las páginas públicas /ayudas/[ccaa] ─────
+function slugify(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+export function ccaaSlug(name: string): string { return slugify(name) }
+
+export function ccaaFromSlug(slug: string, list: readonly string[]): string | null {
+  return list.find(c => slugify(c) === slug) || null
+}
+
 export interface RegionScope { wide: boolean; provincias: string[] }
 
 /**

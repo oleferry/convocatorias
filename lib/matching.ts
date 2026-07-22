@@ -57,7 +57,7 @@ const STOP_TOKENS = new Set([
 
 // CNAE: división (2 dígitos) → letra de sección. La BDNS etiqueta los sectores
 // unas veces con el número de división (47) y otras con la letra (G=comercio).
-function sectionLetter(div: string): string | null {
+export function sectionLetter(div: string): string | null {
   const n = parseInt(div, 10); if (isNaN(n)) return null
   if (n <= 3) return 'A'; if (n <= 9) return 'B'; if (n <= 33) return 'C'; if (n === 35) return 'D'
   if (n <= 39) return 'E'; if (n <= 43) return 'F'; if (n <= 47) return 'G'; if (n <= 53) return 'H'

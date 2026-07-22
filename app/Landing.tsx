@@ -117,6 +117,7 @@ export default function Landing() {
       <div style={{ ...wrap, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><BrandMark size={34} /><Wordmark /></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <a href="/ayudas" style={{ fontSize: 14, fontWeight: 600, color: T.inkMid, textDecoration: 'none' }}>Ver ayudas abiertas</a>
           <a href="#gestorias" style={{ fontSize: 14, fontWeight: 600, color: T.inkMid, textDecoration: 'none' }}>Para gestorías</a>
           <a href="/auth" style={{ fontSize: 14, fontWeight: 700, color: T.ink, textDecoration: 'none' }}>Iniciar sesión</a>
         </div>
