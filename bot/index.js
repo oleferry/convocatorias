@@ -437,6 +437,10 @@ async function analyzeGrant(input, userId) {
 const TIPOS_VALIDOS = ['publica', 'concurso', 'privada', 'europeo']
 const URL_RE = /https?:\/\/[^\s]+/i
 
+function normalizeUrl(u) {
+  return (u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '')
+}
+
 bot.on('message', async (msg) => {
   const text = (msg.text || '').trim()
   if (!text || text.startsWith('/')) return       // los comandos los gestiona onText
@@ -447,6 +451,11 @@ bot.on('message', async (msg) => {
   const user = await getUser(chatId)
   if (!user) return send(chatId, '🐾 Huele bien… pero antes conéctame desde tu panel → <b>"Conectar Telegram"</b>.')
   if (!ai) return send(chatId, 'Necesito la IA configurada para oler links (falta ANTHROPIC_API_KEY).')
+
+  // Antes de gastar una llamada a la IA, comprueba si ya la tienes guardada.
+  const { data: ownGrants } = await sb.from('grants').select('id,titulo,url').eq('user_id', user.id).not('url', 'is', null)
+  const dup = (ownGrants || []).find(g => normalizeUrl(g.url) === normalizeUrl(m[0]))
+  if (dup) return send(chatId, `🐾 Esta ya la tenías guardada: <b>${esc(dup.titulo)}</b>. No te la duplico.\n\nLa ves en ${esc(APP_URL)}/dashboard`)
 
   send(chatId, '🐾 Déjame oler esto…')
   try {
