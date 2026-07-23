@@ -132,6 +132,7 @@ const HELP = [
   '/pendientes — lo que tienes entre manos',
   '/resumen — cómo vas, en números',
   '/buscar — salgo a olfatear ayudas nuevas por internet (más lento)',
+  '/perfil — si llevas varias empresas, elige a cuál mando lo que encuentre',
   '/desvincular — si te quieres ir (tú verás)',
   '',
   '🔒 ¿Aún no estás conectado? Hazlo desde tu panel → <b>"Conectar Telegram"</b>.',
@@ -174,6 +175,52 @@ async function requireUser(chatId) {
   }
   return user
 }
+
+// ── Perfil activo del bot (para cuentas con varias empresas) ───
+// Si el usuario ha elegido perfil con /perfil, se usa ese (mientras siga
+// existiendo y no esté archivado). Si no, cae al de siempre: el por
+// defecto o el más antiguo.
+async function userOrgs(userId) {
+  const { data } = await sb.from('organizations').select('*')
+    .eq('user_id', userId).eq('is_archived', false)
+    .order('is_default', { ascending: false }).order('created_at')
+  return data || []
+}
+
+async function activeOrgFor(user) {
+  const orgs = await userOrgs(user.id)
+  if (user.bot_active_org_id) {
+    const chosen = orgs.find(o => o.id === user.bot_active_org_id)
+    if (chosen) return chosen
+  }
+  return orgs[0] || null
+}
+
+bot.onText(/^\/perfil\b\s*(.*)/i, async (msg, match) => {
+  const chatId = msg.chat.id
+  const user = await requireUser(chatId)
+  if (!user) return
+  const orgs = await userOrgs(user.id)
+  if (!orgs.length) return send(chatId, `Aún no tienes ningún perfil de empresa. Créate uno aquí: ${esc(APP_URL)}/organizations`)
+
+  const query = (match[1] || '').trim()
+  if (!query) {
+    const active = await activeOrgFor(user)
+    const lines = orgs.map(o => `${o.id === active?.id ? '👉' : '•'} ${esc(o.name)}`)
+    return send(chatId, `<b>Tus perfiles:</b>\n\n${lines.join('\n')}\n\nActivo ahora: <b>${esc(active?.name || '—')}</b>.\nCambia con <code>/perfil nombre</code>.`)
+  }
+
+  const q = query.toLowerCase()
+  const hits = orgs.filter(o => o.name.toLowerCase().includes(q))
+  if (hits.length === 0) {
+    return send(chatId, `No encuentro ningún perfil que se parezca a "${esc(query)}". Tienes: ${orgs.map(o => esc(o.name)).join(', ')}.`)
+  }
+  if (hits.length > 1) {
+    return send(chatId, `Hay varios que coinciden: ${hits.map(o => esc(o.name)).join(', ')}. Sé más concreto.`)
+  }
+  await sb.from('users').update({ bot_active_org_id: hits[0].id }).eq('id', user.id)
+  send(chatId, `✅ Vale, lo siguiente que me mandes (links, /sugerencias, /buscar) va a la carpeta de <b>${esc(hits[0].name)}</b>.`)
+})
 
 bot.onText(/^\/hoy\b/, async (msg) => {
   const chatId = msg.chat.id
@@ -226,10 +273,7 @@ bot.onText(/^\/sugerencias\b/, async (msg) => {
   const user = await requireUser(chatId)
   if (!user) return
 
-  const { data: orgs } = await sb.from('organizations').select('*')
-    .eq('user_id', user.id).eq('is_archived', false)
-    .order('is_default', { ascending: false }).order('created_at')
-  const org = (orgs || [])[0]
+  const org = await activeOrgFor(user)
   if (!org) return send(chatId, `Aún no me has dicho a qué te dedicas. Créate un perfil aquí y sabré qué buscarte: ${esc(APP_URL)}/organizations`)
 
   const today = new Date().toISOString().slice(0, 10)
@@ -267,10 +311,7 @@ bot.onText(/^\/buscar\b/, async (msg) => {
   if (!user) return
   if (!ai) return send(chatId, 'La búsqueda con IA no está configurada (falta ANTHROPIC_API_KEY).')
 
-  const { data: orgs } = await sb.from('organizations').select('*')
-    .eq('user_id', user.id).eq('is_archived', false)
-    .order('is_default', { ascending: false }).order('created_at')
-  const org = (orgs || [])[0]
+  const org = await activeOrgFor(user)
   if (!org) return send(chatId, `Aún no me has dicho a qué te dedicas. Créate un perfil aquí y sabré qué buscarte: ${esc(APP_URL)}/organizations`)
 
   send(chatId, `🔎 Me voy a peinar la BDNS buscando algo para <b>${esc(org.name)}</b>. Dame 15-30s…`)
@@ -392,13 +433,10 @@ bot.on('message', async (msg) => {
   send(chatId, '🐾 Déjame oler esto…')
   try {
     const p = await analyzeGrant(text, user.id)
-    const { data: orgs } = await sb.from('organizations').select('id')
-      .eq('user_id', user.id).eq('is_archived', false)
-      .order('is_default', { ascending: false }).order('created_at')
-    const orgId = (orgs && orgs[0] && orgs[0].id) || null
+    const org = await activeOrgFor(user)
 
     const { data, error } = await sb.from('grants').insert({
-      user_id: user.id, org_id: orgId,
+      user_id: user.id, org_id: org?.id || null,
       titulo: p.titulo || 'Convocatoria sin título', organismo: p.organismo || '',
       tipo: TIPOS_VALIDOS.includes(p.tipo) ? p.tipo : 'privada',
       ambito: p.ambito || 'nacional',
@@ -410,7 +448,8 @@ bot.on('message', async (msg) => {
     }).select().single()
     if (error) throw error
 
-    send(chatId, `🦴 ¡Toma! Ya la tienes en tu carpeta:\n\n${grantLine(data)}\n\nLa ves en ${esc(APP_URL)}/dashboard`)
+    const folder = org ? ` (carpeta de <b>${esc(org.name)}</b>)` : ''
+    send(chatId, `🦴 ¡Toma! Ya la tienes en tu carpeta${folder}:\n\n${grantLine(data)}\n\nLa ves en ${esc(APP_URL)}/dashboard`)
   } catch (e) {
     console.error('[link]', e)
     send(chatId, '😕 Este link se me ha atragantado. Pégalo en la web (+ Nueva → Analizar con IA) y lo guardo seguro.')
@@ -464,6 +503,7 @@ bot.setMyCommands([
   { command: 'pendientes', description: '📋 Lo que tienes entre manos' },
   { command: 'resumen', description: '📊 Cómo vas, en números' },
   { command: 'buscar', description: '🔎 Salgo a olfatear ayudas nuevas por internet' },
+  { command: 'perfil', description: '🏷️ Elegir a qué empresa mando lo que encuentre' },
   { command: 'ayuda', description: '❓ Qué sé hacer' },
   { command: 'desvincular', description: '🔌 Desconectar tu cuenta' },
 ]).catch((e) => console.error('[setMyCommands]', e.message))
