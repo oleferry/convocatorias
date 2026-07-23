@@ -213,13 +213,35 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 
+// Coletillas finales de trámite (región/año) que no aportan a "qué es esto" —
+// la región/CCAA ya se ve en otro sitio de la tarjeta, así que repetirla en el
+// título solo lo alarga sin dar información nueva.
+const TRAILING_BOILERPLATE = [
+  /,?\s*(en|para)\s+la\s+(comunidad( aut[oó]noma)?|ciudad|provincia)\s+de\s+[\wÀ-ÿ][\wÀ-ÿ\s]*$/i,
+  /,?\s*en\s+el\s+[aá]mbito\s+de\s+[\wÀ-ÿ][\wÀ-ÿ\s]*$/i,
+  /,?\s*(para|durante|correspondientes?\s+a)\s+el\s+(año|ejercicio)\s+\d{4}\.?$/i,
+  /,?\s*\d{4}\.?$/,
+]
+
 // Resume el título oficial de la BDNS (un ladrillo tipo "Resolución de … por la
 // que se aprueba la convocatoria para la concesión de subvenciones destinadas a
-// X") y se queda con el núcleo: "Subvenciones destinadas a X".
+// X, en la Comunidad de Y, para el año Z") y se queda con el núcleo: "Subvenciones
+// destinadas a X" — sin inventar nada, solo recortando boilerplate conocido.
 export function tituloCorto(t: string | null | undefined): string {
   let s = (t || '').replace(/\s+/g, ' ').trim()
   const m = s.match(/(subvenci\w*|ayudas?\b|becas?\b|premios?\b|l[ií]neas? de ayuda|bono\w*)[\s\S]*/i)
   if (m) s = m[0].trim()
+
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const re of TRAILING_BOILERPLATE) {
+      const next = s.replace(re, '').trim()
+      // No recortar si deja el título demasiado corto para tener sentido.
+      if (next !== s && next.length >= 20) { s = next; changed = true }
+    }
+  }
+
   s = s.replace(/[\s,;.:]+$/, '')
   if (s) s = s.charAt(0).toUpperCase() + s.slice(1)
   if (s.length > 120) s = s.slice(0, 117).replace(/\s+\S*$/, '') + '…'

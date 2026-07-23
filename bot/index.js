@@ -111,7 +111,7 @@ function grantLine(g) {
   meta.push(`${sm.icon} ${sm.label}`)
   parts.push(meta.join(' · '))
   const foot = []
-  if (g.importe_max) foot.push(`💰 ${esc(g.importe_max)}`)
+  if (g.importe_max) foot.push(`💰 ${esc(g.importe_max)}${g.source === 'bdns' ? ' (total convocatoria)' : ''}`)
   foot.push(deadlineLabel(g.plazo_solicitud))
   parts.push(foot.join('   '))
   return parts.join('\n')
@@ -294,7 +294,8 @@ bot.onText(/^\/sugerencias\b/, async (msg) => {
   const fmt = (x) => {
     const c = x.c
     const plazo = c.fecha_fin ? deadlineLabel(c.fecha_fin) : '🔁 consulta el plazo en la web'
-    return `<b>${esc(tituloCorto(c.titulo))}</b>\n${c.presupuesto_total != null ? `💰 ${esc(formatEuro(c.presupuesto_total))}   ` : ''}${plazo}${c.bases_url ? `\n🔗 ${esc(c.bases_url)}` : ''}`
+    const total = !c.fuente || c.fuente === 'bdns'
+    return `<b>${esc(tituloCorto(c.titulo))}</b>\n${c.presupuesto_total != null ? `💰 ${esc(formatEuro(c.presupuesto_total))}${total ? ' (total convocatoria)' : ''}   ` : ''}${plazo}${c.bases_url ? `\n🔗 ${esc(c.bases_url)}` : ''}`
   }
   const sector = hits.filter(x => x.m.tier === 'sector').slice(0, 5)
   const elegibles = hits.filter(x => x.m.tier === 'elegible').slice(0, 3)

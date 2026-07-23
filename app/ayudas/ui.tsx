@@ -67,8 +67,13 @@ export function GrantCard({ grant }: { grant: PublicGrantCard }) {
           {grant.titulo}
         </h3>
         {grant.importe && (
-          <span style={{ fontSize: 14, fontWeight: 800, color: T.gold, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-            hasta {grant.importe}
+          <span style={{ textAlign: 'right' }}>
+            <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: T.gold, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+              {(!grant.fuente || grant.fuente === 'bdns') ? grant.importe : `hasta ${grant.importe}`}
+            </span>
+            {(!grant.fuente || grant.fuente === 'bdns') && (
+              <span style={{ display: 'block', fontSize: 10.5, color: T.inkMuted }}>presupuesto total</span>
+            )}
           </span>
         )}
       </div>

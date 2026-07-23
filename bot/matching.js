@@ -176,11 +176,29 @@ function formatEuro(n) {
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €'
 }
 
+// Coletillas finales de trámite (región/año) — espejo de lib/matching.ts.
+const TRAILING_BOILERPLATE = [
+  /,?\s*(en|para)\s+la\s+(comunidad( aut[oó]noma)?|ciudad|provincia)\s+de\s+[\wÀ-ÿ][\wÀ-ÿ\s]*$/i,
+  /,?\s*en\s+el\s+[aá]mbito\s+de\s+[\wÀ-ÿ][\wÀ-ÿ\s]*$/i,
+  /,?\s*(para|durante|correspondientes?\s+a)\s+el\s+(año|ejercicio)\s+\d{4}\.?$/i,
+  /,?\s*\d{4}\.?$/,
+]
+
 // Resume el título oficial (espejo de lib/matching.ts → tituloCorto).
 function tituloCorto(t) {
   let s = (t || '').replace(/\s+/g, ' ').trim()
   const m = s.match(/(subvenci\w*|ayudas?\b|becas?\b|premios?\b|l[ií]neas? de ayuda|bono\w*)[\s\S]*/i)
   if (m) s = m[0].trim()
+
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const re of TRAILING_BOILERPLATE) {
+      const next = s.replace(re, '').trim()
+      if (next !== s && next.length >= 20) { s = next; changed = true }
+    }
+  }
+
   s = s.replace(/[\s,;.:]+$/, '')
   if (s) s = s.charAt(0).toUpperCase() + s.slice(1)
   if (s.length > 120) s = s.slice(0, 117).replace(/\s+\S*$/, '') + '…'
