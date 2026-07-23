@@ -4,11 +4,29 @@ import { logApiUsage } from './costs'
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+// Escanea desde el primer '{'/'[' llevando la cuenta de profundidad (e
+// ignorando llaves dentro de strings) hasta encontrar su cierre real. Con
+// web_search activado, Claude a veces añade una frase antes o después del
+// JSON — coger "primer { hasta último }" del texto entero se rompe si esa
+// frase trae cualquier llave suelta (p.ej. una URL con parámetros).
 function extractJSON(text: string, bracket: '{'|'[') {
-  const end = bracket === '{' ? '}' : ']'
-  const s = text.indexOf(bracket), e = text.lastIndexOf(end)
-  if (s === -1) throw new Error('No JSON')
-  return JSON.parse(text.slice(s, e + 1))
+  const close = bracket === '{' ? '}' : ']'
+  const start = text.indexOf(bracket)
+  if (start === -1) throw new Error('No JSON')
+  let depth = 0, inStr = false, esc = false
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (ch === '\\') esc = true
+      else if (ch === '"') inStr = false
+      continue
+    }
+    if (ch === '"') { inStr = true; continue }
+    if (ch === bracket) depth++
+    else if (ch === close) { depth--; if (depth === 0) return JSON.parse(text.slice(start, i + 1)) }
+  }
+  throw new Error('JSON sin cerrar')
 }
 
 // Llama a Claude y registra el coste real (tokens de la respuesta) en
