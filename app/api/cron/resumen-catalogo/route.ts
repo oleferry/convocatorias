@@ -4,6 +4,8 @@ import { generateResumenCatalogo } from '@/lib/ai'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // GET /api/cron/resumen-catalogo → backfill puntual: genera el resumen
 // periodístico + importe real por beneficiario para convocatorias BDNS ya
