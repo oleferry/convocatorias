@@ -54,9 +54,14 @@ export async function GET(req: NextRequest) {
       } catch (e: any) { fallos.push({ codigo_bdns: row.codigo_bdns, error: e?.message }) }
     }
 
+    // .neq con un valor que nunca existe de verdad: no cambia qué filas cuenta,
+    // solo evita que una caché externa (delante de la API de Supabase) devuelva
+    // esta cuenta cacheada por tener siempre la misma URL exacta — ya nos pasó
+    // en el backfill real: "restantes" se quedó pegado varias vueltas seguidas.
     const { count: remaining } = await sb.from('convocatorias_publicas')
       .select('codigo_bdns', { count: 'exact', head: true })
       .or('fuente.is.null,fuente.eq.bdns').gte('fecha_fin', today).is('resumen_periodista', null)
+      .neq('codigo_bdns', `__cache_bust_${Date.now()}`)
 
     return NextResponse.json({
       ok: true, procesadas: done, candidatas: (pending || []).length, restantes: remaining ?? 0,
