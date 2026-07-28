@@ -34,24 +34,32 @@ export async function GET(req: NextRequest) {
     if (error) throw new Error(error.message)
 
     let done = 0
+    const fallos: any[] = []
     for (const row of (pending || [])) {
       try {
         const { resumen, importeBeneficiario } = await generateResumenCatalogo(row)
         if (resumen) {
-          await sb.from('convocatorias_publicas').update({
+          const { error: updErr, data: updData } = await sb.from('convocatorias_publicas').update({
             resumen_periodista: resumen, importe_beneficiario: importeBeneficiario,
             resumen_generado_at: new Date().toISOString(),
-          }).eq('codigo_bdns', row.codigo_bdns)
+          }).eq('codigo_bdns', row.codigo_bdns).select('codigo_bdns')
+          if (updErr) { fallos.push({ codigo_bdns: row.codigo_bdns, error: updErr.message }); continue }
+          if (!updData || !updData.length) { fallos.push({ codigo_bdns: row.codigo_bdns, error: 'update afectó 0 filas' }); continue }
           done++
+        } else {
+          fallos.push({ codigo_bdns: row.codigo_bdns, error: 'sin resumen (IA no devolvió texto)' })
         }
-      } catch (e: any) { console.warn('[resumen-catalogo]', row.codigo_bdns, e?.message) }
+      } catch (e: any) { fallos.push({ codigo_bdns: row.codigo_bdns, error: e?.message }) }
     }
 
     const { count: remaining } = await sb.from('convocatorias_publicas')
       .select('codigo_bdns', { count: 'exact', head: true })
       .or('fuente.is.null,fuente.eq.bdns').gte('fecha_fin', today).is('resumen_periodista', null)
 
-    return NextResponse.json({ ok: true, procesadas: done, candidatas: (pending || []).length, restantes: remaining ?? 0 })
+    return NextResponse.json({
+      ok: true, procesadas: done, candidatas: (pending || []).length, restantes: remaining ?? 0,
+      fallos: fallos.slice(0, 5), total_fallos: fallos.length,
+    })
   } catch (e: any) {
     console.error('[cron/resumen-catalogo]', e)
     return NextResponse.json({ error: e?.message || 'Error generando resúmenes' }, { status: 500 })
