@@ -14,6 +14,7 @@ export interface PublicGrantCard {
   titulo: string
   organo: string | null
   importe: string
+  importeEsTotal: boolean
   finalidad: string | null
   fechaFin: string | null
   bases_url: string | null
@@ -21,7 +22,7 @@ export interface PublicGrantCard {
   sectorLabels: string[]
 }
 
-const SELECT_FIELDS = 'codigo_bdns,titulo,organo,nivel1,ccaa,presupuesto_total,finalidad,beneficiarios,sectores,bases_url,fecha_fin,fecha_inicio,fuente'
+const SELECT_FIELDS = 'codigo_bdns,titulo,organo,nivel1,ccaa,presupuesto_total,finalidad,beneficiarios,sectores,bases_url,fecha_fin,fecha_inicio,fuente,resumen_periodista,importe_beneficiario'
 
 function isOpen(fecha_fin: string | null, todayISO: string): boolean {
   return !fecha_fin || fecha_fin >= todayISO
@@ -32,8 +33,9 @@ function toCard(row: any): PublicGrantCard {
     codigo_bdns: row.codigo_bdns,
     titulo: tituloCorto(row.titulo),
     organo: row.organo,
-    importe: formatEuro(row.presupuesto_total),
-    finalidad: row.finalidad,
+    importe: row.importe_beneficiario || formatEuro(row.presupuesto_total),
+    importeEsTotal: !row.importe_beneficiario && row.presupuesto_total != null,
+    finalidad: row.resumen_periodista || row.finalidad,
     fechaFin: row.fecha_fin,
     bases_url: row.bases_url,
     fuente: row.fuente,

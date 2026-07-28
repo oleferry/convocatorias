@@ -31,6 +31,8 @@ export interface PublicGrantRow {
   fecha_inicio: string | null
   fecha_fin: string | null
   fuente?: string | null
+  resumen_periodista?: string | null
+  importe_beneficiario?: string | null
 }
 
 // tier: 'sector' = afín a tu CNAE/IAE/actividad · 'elegible' = abierta a tu tipo
@@ -265,16 +267,21 @@ function ambitoFromNivel(nivel1: string | null): GrantAmbito {
 export function publicToGrant(c: PublicGrantRow, orgId: string | null, matchReason?: string) {
   const tipo = c.fuente === 'europea' ? 'europeo' : c.fuente === 'privada' ? 'privada' : 'publica'
   const ambito: GrantAmbito = c.fuente === 'europea' ? 'europeo' : ambitoFromNivel(c.nivel1)
+  // importe_beneficiario (si el resumen periodístico lo pudo determinar) es el
+  // importe REAL por beneficiario; presupuesto_total es el total de toda la
+  // convocatoria — solo lo usamos de respaldo, marcado como tal.
+  const importeReal = c.importe_beneficiario || null
   return {
     org_id: orgId,
     titulo: tituloCorto(c.titulo),
     organismo: c.organo || (c.nivel1 ? c.nivel1 : ''),
     tipo,
     ambito,
-    importe_max: formatEuro(c.presupuesto_total),
+    importe_max: importeReal || formatEuro(c.presupuesto_total),
+    importe_es_total: !importeReal && c.presupuesto_total != null,
     plazo_solicitud: c.fecha_fin,
     fecha_publicacion: c.fecha_inicio,
-    resumen: c.finalidad ? `Finalidad: ${c.finalidad}.` : '',
+    resumen: c.resumen_periodista || (c.finalidad ? `Finalidad: ${c.finalidad}.` : ''),
     elegibilidad: (c.beneficiarios || []).join(', '),
     requisitos: '',
     url: c.bases_url || '',

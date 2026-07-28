@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabase } from '@/lib/supabase-server'
-import { matchGrant, formatEuro, type PublicGrantRow } from '@/lib/matching'
+import { matchGrant, formatEuro, tituloCorto, type PublicGrantRow } from '@/lib/matching'
 import type { Organization } from '@/lib/types'
 
 export const runtime = 'nodejs'
@@ -26,9 +26,12 @@ function composeTelegram(user: any, items: any[]) {
   const name = firstName(user)
   const top = items.map((it, i) => {
     const c = it.c
+    const importe = c.importe_beneficiario || (c.presupuesto_total != null ? formatEuro(c.presupuesto_total) : null)
+    const esTotal = !c.importe_beneficiario && c.presupuesto_total != null && (!c.fuente || c.fuente === 'bdns')
     return [
-      `<b>${i + 1}. ${esc(c.titulo)}</b>`,
-      `💰 ${esc(formatEuro(c.presupuesto_total) || '—')}   ·   ⏳ ${esc(plazoTxt(c.fecha_fin))}`,
+      `<b>${i + 1}. ${esc(tituloCorto(c.titulo))}</b>`,
+      c.resumen_periodista ? esc(c.resumen_periodista) : null,
+      `💰 ${esc(importe || '—')}${esTotal ? ' (total convocatoria)' : ''}   ·   ⏳ ${esc(plazoTxt(c.fecha_fin))}`,
       it.reason ? `💡 ${esc(it.reason)}` : null,
       c.bases_url ? `🔗 ${esc(c.bases_url)}` : null,
     ].filter(Boolean).join('\n')
@@ -50,11 +53,15 @@ function composeEmail(user: any, items: any[]) {
   const cards = items.map((it) => {
     const c = it.c, dl = daysLeft(c.fecha_fin)
     const plazoColor = dl != null && dl <= 7 ? T.red : T.green
+    const importe = c.importe_beneficiario || (c.presupuesto_total != null ? formatEuro(c.presupuesto_total) : null)
+    const esTotal = !c.importe_beneficiario && c.presupuesto_total != null && (!c.fuente || c.fuente === 'bdns')
     return `
     <div style="background:${T.card};border:1px solid ${T.border};border-radius:12px;padding:18px 20px;margin:0 0 14px">
       <div style="font-size:12px;color:${T.light};margin-bottom:4px">${esc(c.organo || '')}</div>
-      <div style="font-size:16px;font-weight:700;color:${T.ink};line-height:1.35;margin-bottom:8px">${esc(c.titulo)}</div>
-      ${c.presupuesto_total != null ? `<div style="font-size:15px;font-weight:800;color:${T.ink};margin-bottom:6px">${esc(formatEuro(c.presupuesto_total))}</div>` : ''}
+      <div style="font-size:16px;font-weight:700;color:${T.ink};line-height:1.35;margin-bottom:8px">${esc(tituloCorto(c.titulo))}</div>
+      ${c.resumen_periodista ? `<div style="font-size:13.5px;color:${T.mid};line-height:1.55;margin-bottom:8px">${esc(c.resumen_periodista)}</div>` : ''}
+      ${importe ? `<div style="font-size:15px;font-weight:800;color:${T.ink};margin-bottom:2px">${esc(importe)}</div>` : ''}
+      ${esTotal ? `<div style="font-size:11px;color:${T.light};margin-bottom:6px">Presupuesto total de la convocatoria</div>` : ''}
       <div style="font-size:13px;font-weight:700;color:${plazoColor};margin-bottom:8px">⏳ ${esc(plazoTxt(c.fecha_fin))}</div>
       ${it.reason ? `<div style="display:inline-block;background:#EDE6F7;color:${T.purple};font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;margin-bottom:8px">💡 ${esc(it.reason)}</div>` : ''}
       ${c.bases_url ? `<div><a href="${esc(c.bases_url)}" style="font-size:13px;color:${T.amber};font-weight:600;text-decoration:none">🔗 Ver las bases →</a></div>` : ''}

@@ -69,9 +69,9 @@ export function GrantCard({ grant }: { grant: PublicGrantCard }) {
         {grant.importe && (
           <span style={{ textAlign: 'right' }}>
             <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: T.gold, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-              {(!grant.fuente || grant.fuente === 'bdns') ? grant.importe : `hasta ${grant.importe}`}
+              {grant.importeEsTotal ? grant.importe : `hasta ${grant.importe}`}
             </span>
-            {(!grant.fuente || grant.fuente === 'bdns') && (
+            {grant.importeEsTotal && (
               <span style={{ display: 'block', fontSize: 10.5, color: T.inkMuted }}>presupuesto total</span>
             )}
           </span>

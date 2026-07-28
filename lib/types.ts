@@ -39,6 +39,7 @@ export interface Grant {
   tipo: GrantTipo
   ambito: GrantAmbito
   importe_max?: string
+  importe_es_total?: boolean
   importe_min?: string
   cofinanciacion?: string
   plazo_solicitud?: string

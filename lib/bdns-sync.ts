@@ -5,6 +5,7 @@
 // ================================================================
 import { searchConvocatorias, getConvocatoriaDetail, normalizeDetail, normalizeCcaa } from './bdns'
 import { resolveLocalGeo } from './geo'
+import { generateResumenCatalogo } from './ai'
 
 function ymd(d: Date) { return d.toISOString().slice(0, 10) }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -65,6 +66,23 @@ export async function syncBdns(sb: any, opts: { sinceDays?: number; maxDetails?:
   // 3) Upsert — solo lo que tiene plazo de solicitud futuro (lo demás no aporta)
   const tISO = ymd(today)
   const useful = rows.filter(r => r.fecha_fin && r.fecha_fin >= tISO)
+
+  // Resumen periodístico + importe real por beneficiario — UNA vez por
+  // convocatoria (no por usuario). Best-effort: si falla, se ingiere igual
+  // sin el resumen y ya se generará en un backfill posterior.
+  if (process.env.ANTHROPIC_API_KEY) {
+    for (const r of useful) {
+      try {
+        const { resumen, importeBeneficiario } = await generateResumenCatalogo(r)
+        if (resumen) {
+          (r as any).resumen_periodista = resumen
+          ;(r as any).importe_beneficiario = importeBeneficiario
+          ;(r as any).resumen_generado_at = new Date().toISOString()
+        }
+      } catch (e: any) { console.warn('[bdns-sync] resumen_catalogo:', e?.message) }
+    }
+  }
+
   for (let i = 0; i < useful.length; i += 200) {
     const { error } = await sb.from('convocatorias_publicas').upsert(useful.slice(i, i + 200), { onConflict: 'codigo_bdns' })
     if (error) throw new Error('upsert: ' + error.message)

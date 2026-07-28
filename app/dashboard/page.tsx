@@ -132,7 +132,7 @@ function GrantCard({ grant, org, onClick, compact }: { grant: Grant; org?: Organ
             <div style={{ fontSize: 18, fontWeight: 800, color: T.ink, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
               {grant.importe_max}
             </div>
-            {grant.source === 'bdns' && (
+            {grant.importe_es_total && (
               <div style={{ fontSize: 10.5, color: T.inkMuted }}>Presupuesto total de la convocatoria</div>
             )}
           </div>
@@ -193,12 +193,15 @@ function SuggestionCard({ c, saved, onSave, onLead }: { c: any; saved: boolean; 
             <div style={{ fontSize: 10, color: T.inkMuted }}>match</div>
           </div>
         </div>
-        {c.presupuesto_total != null && (
+        {c.resumen_periodista && (
+          <p style={{ margin: '0 0 8px', fontSize: 12.5, color: T.inkLight, lineHeight: 1.55 }}>{c.resumen_periodista}</p>
+        )}
+        {(c.importe_beneficiario || c.presupuesto_total != null) && (
           <div style={{ marginBottom: 6 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: T.ink, letterSpacing: '-0.02em' }}>
-              {formatEuro(c.presupuesto_total)}
+              {c.importe_beneficiario || formatEuro(c.presupuesto_total)}
             </div>
-            {(!c.fuente || c.fuente === 'bdns') && (
+            {!c.importe_beneficiario && (!c.fuente || c.fuente === 'bdns') && (
               <div style={{ fontSize: 10, color: T.inkMuted }}>Presupuesto total de la convocatoria</div>
             )}
           </div>
@@ -594,10 +597,10 @@ function DetailPanel({ grant, org, onClose, onEdit, onDelete, onStatusChange, on
             {grant.importe_max && (
               <div style={{ padding: '14px 16px', background: T.bg, borderRadius: 10 }}>
                 <div style={{ ...sectionLabel, marginBottom: 6 }}>
-                  {grant.source === 'bdns' ? 'Presupuesto total de la convocatoria' : 'Importe máximo'}
+                  {grant.importe_es_total ? 'Presupuesto total de la convocatoria' : 'Importe máximo'}
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: T.ink, letterSpacing: '-0.02em' }}>{grant.importe_max}</div>
-                {grant.source === 'bdns' && (
+                {grant.importe_es_total && (
                   <div style={{ fontSize: 11, color: T.inkMuted, marginTop: 4 }}>Repartido entre todos los beneficiarios, no es lo que recibiría tu empresa.</div>
                 )}
               </div>

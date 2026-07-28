@@ -105,6 +105,42 @@ Busca premios, concursos y ayudas PRIVADAS relevantes para este negocio.`
   } catch { return [] }
 }
 
+// ─── RESUMEN PERIODÍSTICO DE CATÁLOGO (una vez por convocatoria) ──────────────
+// Se genera UNA VEZ al ingerir la convocatoria (o en el backfill puntual),
+// nunca por usuario ni por email — así el coste depende de cuántas
+// convocatorias NUEVAS entran al catálogo, no de a cuántos perfiles les sale.
+// Sin búsqueda web (barato y determinista): usa los datos ya ingeridos,
+// incluido el texto del anuncio, que es donde suele estar el importe real
+// por beneficiario (presupuestoTotal de la BDNS es el total de la partida
+// para TODA la convocatoria, no lo que recibe cada solicitante).
+export interface ResumenCatalogo { resumen: string; importeBeneficiario: string | null }
+
+export async function generateResumenCatalogo(row: {
+  titulo: string; organo?: string | null; finalidad?: string | null
+  beneficiarios?: string[] | null; anuncio_texto?: string | null; presupuesto_total?: number | null
+}): Promise<ResumenCatalogo> {
+  const sys = `Eres periodista especializado en ayudas y subvenciones públicas españolas. A partir de datos oficiales (nunca inventes nada que no esté en ellos), escribe:
+1. Un resumen de 1-2 frases en lenguaje llano y periodístico — qué es, para quién y para qué sirve. Nunca copies el título administrativo tal cual (evita "Resolución de...", "por la que se convocan...", nombres de leyes/órdenes).
+2. El importe real que recibiría UN solicitante (no el total de la convocatoria) — solo si se puede determinar con seguridad a partir del texto que te doy. Si hay varios importes según casos, resúmelo en pocas palabras (p.ej. "6.000€, 8.000€ si es mujer"). Si de verdad no se puede saber, usa null; no inventes ni estimes una cifra.
+Devuelve SOLO JSON sin backticks: {"resumen":"","importeBeneficiario":"string o null"}`
+
+  const u = `- Título oficial: ${row.titulo}
+- Organismo: ${row.organo || '—'}
+- Finalidad (BDNS): ${row.finalidad || '—'}
+- Beneficiarios: ${(row.beneficiarios || []).join(', ') || '—'}
+- Presupuesto total de la convocatoria (esto NO es el importe por beneficiario, no lo confundas): ${row.presupuesto_total != null ? row.presupuesto_total : '—'}
+- Texto del anuncio oficial (aquí suele estar el importe real por persona/empresa):
+${row.anuncio_texto || '(no disponible)'}`
+
+  const text = await callAI(sys, u, false, 400, 'resumen_catalogo')
+  try {
+    const j = extractJSON(text.replace(/```json|```/g, '').trim(), '{')
+    return { resumen: String(j.resumen || '').trim(), importeBeneficiario: j.importeBeneficiario ? String(j.importeBeneficiario).trim() : null }
+  } catch {
+    return { resumen: '', importeBeneficiario: null }
+  }
+}
+
 // ─── RESUMEN DE LA CONVOCATORIA (bases) ────────────────────────────────────────
 // Resumen BREVE y barato (pocos tokens, sin adornos) de la convocatoria en sí:
 // plazos, importe, quién puede pedirlo, condiciones, para qué es. Se dispara

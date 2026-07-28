@@ -54,6 +54,7 @@ export interface BdnsDetail {
   fechaInicioSolicitud?: string | null
   fechaFinSolicitud?: string | null
   ayudaEstado?: string | null
+  anuncios?: { texto?: string }[]
 }
 
 // Fila lista para insertar en public.convocatorias_publicas
@@ -81,6 +82,7 @@ export interface ConvocatoriaPublicaRow {
   fecha_inicio: string | null
   fecha_fin: string | null
   fecha_recepcion: string | null
+  anuncio_texto: string | null
 }
 
 // ── Utilidades de fecha ────────────────────────────────────────
@@ -165,6 +167,15 @@ export function normalizeCcaa(nivel1?: string, nivel2?: string): string | null {
   return null
 }
 
+// Quita etiquetas HTML del texto del anuncio (viene como <p>...</p>) — es
+// donde suele estar el importe REAL por beneficiario, a diferencia de
+// presupuestoTotal (el total de la partida para toda la convocatoria).
+function stripHtml(html?: string | null): string | null {
+  if (!html) return null
+  const s = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  return s ? s.slice(0, 4000) : null
+}
+
 // ── Normalizador detalle → fila de catálogo ────────────────────
 export function normalizeDetail(d: BdnsDetail): ConvocatoriaPublicaRow {
   const nivel1 = d.organo?.nivel1 || null
@@ -201,5 +212,6 @@ export function normalizeDetail(d: BdnsDetail): ConvocatoriaPublicaRow {
     fecha_inicio: d.fechaInicioSolicitud || null,
     fecha_fin: d.fechaFinSolicitud || null,
     fecha_recepcion: d.fechaRecepcion || null,
+    anuncio_texto: stripHtml(d.anuncios?.[0]?.texto),
   }
 }
