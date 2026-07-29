@@ -5,6 +5,7 @@ import { syncDescubrimiento } from '@/lib/descubrir'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // GET /api/cron/descubrir → descubrimiento IA de ayudas/concursos privados.
 // Protegido por CRON_SECRET (o abierto si no está configurado). ?max=N sectores.

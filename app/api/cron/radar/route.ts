@@ -4,6 +4,8 @@ import { syncRadar } from '@/lib/radar-sync'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // GET /api/cron/radar → vuelca el radar (privados + europeos curados + EU portal).
 export async function GET(req: NextRequest) {

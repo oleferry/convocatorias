@@ -6,6 +6,8 @@ import { syncDescubrimiento } from '@/lib/descubrir'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // GET /api/cron/ingest  → ingesta acotada de la BDNS al catálogo.
 // Lo llama el cron de Vercel (Authorization: Bearer CRON_SECRET) o tú a mano
