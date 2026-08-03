@@ -26,6 +26,66 @@ export function computeCostUsd(model: string, usage: AnthropicUsage): number {
   return ((inTok + cacheTok) * p.in + outTok * p.out) / 1_000_000
 }
 
+// ── Límites de coste ────────────────────────────────────────────
+// Cinturón de seguridad global + tope diario por usuario y función, para
+// que ni un fallo ni un usuario (de pago o no) puedan disparar el gasto.
+const DAILY_GLOBAL_CAP_EUR = 1
+const FX_USD_PER_EUR = 1 / 0.92 // mismo tipo de cambio aproximado que /admin/costs
+const DAILY_GLOBAL_CAP_USD = DAILY_GLOBAL_CAP_EUR * FX_USD_PER_EUR
+
+// Solo se aplican a funciones disparadas por un clic de un usuario concreto;
+// las funciones de catálogo (descubrimiento, resumen de catálogo) no tienen
+// tope por usuario porque no las dispara un usuario, ya están acotadas por
+// el ?max= del cron.
+export const PER_USER_DAILY_LIMITS: Record<string, number> = {
+  memoria: 20,
+  resumen: 20,
+  analyze: 15,
+  search_web: 5,
+}
+
+function startOfTodayIso(): string {
+  const d = new Date(); d.setUTCHours(0, 0, 0, 0)
+  return d.toISOString()
+}
+
+async function globalCostTodayUsd(): Promise<number> {
+  const sb = createAdminSupabase()
+  const { data } = await sb.from('api_usage_log').select('cost_usd').gte('created_at', startOfTodayIso())
+  return (data || []).reduce((sum: number, r: any) => sum + (r.cost_usd || 0), 0)
+}
+
+async function userFeatureCountToday(userId: string, feature: string): Promise<number> {
+  const sb = createAdminSupabase()
+  const { count } = await sb.from('api_usage_log').select('id', { count: 'exact', head: true })
+    .eq('user_id', userId).eq('feature', feature).gte('created_at', startOfTodayIso())
+  return count || 0
+}
+
+export interface RateLimitResult { allowed: boolean; reason?: string }
+
+// Best-effort: si falla la comprobación (p.ej. Supabase caído), dejamos pasar
+// la llamada — un fallo de lectura no debe bloquear todo el producto.
+export async function checkRateLimit(feature: string, userId?: string | null): Promise<RateLimitResult> {
+  try {
+    const globalCost = await globalCostTodayUsd()
+    if (globalCost >= DAILY_GLOBAL_CAP_USD) {
+      return { allowed: false, reason: `Hoy ya se ha alcanzado el límite de gasto de la plataforma (${DAILY_GLOBAL_CAP_EUR}€/día). Vuelve a intentarlo mañana.` }
+    }
+    const perUserLimit = PER_USER_DAILY_LIMITS[feature]
+    if (perUserLimit && userId) {
+      const count = await userFeatureCountToday(userId, feature)
+      if (count >= perUserLimit) {
+        return { allowed: false, reason: `Has alcanzado el límite diario de esta función (${perUserLimit}/día). Vuelve a intentarlo mañana.` }
+      }
+    }
+    return { allowed: true }
+  } catch (e: any) {
+    console.warn('[checkRateLimit]', e?.message)
+    return { allowed: true }
+  }
+}
+
 export async function logApiUsage(opts: {
   feature: string
   source?: 'web' | 'bot' | 'cron'
