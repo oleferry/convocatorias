@@ -62,6 +62,12 @@ async function userFeatureCountToday(userId: string, feature: string): Promise<n
   return count || 0
 }
 
+async function userIsPro(userId: string): Promise<boolean> {
+  const sb = createAdminSupabase()
+  const { data } = await sb.from('users').select('plan').eq('id', userId).maybeSingle()
+  return data?.plan === 'pro' || data?.plan === 'team'
+}
+
 export interface RateLimitResult { allowed: boolean; reason?: string }
 
 // Best-effort: si falla la comprobación (p.ej. Supabase caído), dejamos pasar
@@ -70,7 +76,11 @@ export async function checkRateLimit(feature: string, userId?: string | null): P
   try {
     const globalCost = await globalCostTodayUsd()
     if (globalCost >= DAILY_GLOBAL_CAP_USD) {
-      return { allowed: false, reason: `Hoy ya se ha alcanzado el límite de gasto de la plataforma (${DAILY_GLOBAL_CAP_EUR}€/día). Vuelve a intentarlo mañana.` }
+      // Por encima del tope diario gratuito: solo usuarios de pago siguen.
+      const isPro = userId ? await userIsPro(userId) : false
+      if (!isPro) {
+        return { allowed: false, reason: `Hoy ya se ha alcanzado el límite de uso gratuito de la plataforma (${DAILY_GLOBAL_CAP_EUR}€/día). Hazte Pro para seguir usando esta función hoy, o vuelve mañana.` }
+      }
     }
     const perUserLimit = PER_USER_DAILY_LIMITS[feature]
     if (perUserLimit && userId) {
