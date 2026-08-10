@@ -6,6 +6,7 @@
 import { searchConvocatorias, getConvocatoriaDetail, normalizeDetail, normalizeCcaa } from './bdns'
 import { resolveLocalGeo } from './geo'
 import { generateResumenCatalogo } from './ai'
+import { esConcesionDirecta } from './matching'
 
 function ymd(d: Date) { return d.toISOString().slice(0, 10) }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -64,8 +65,10 @@ export async function syncBdns(sb: any, opts: { sinceDays?: number; maxDetails?:
   }
 
   // 3) Upsert — solo lo que tiene plazo de solicitud futuro (lo demás no aporta)
+  // y no es concesión directa (adjudicada ya por nombre a una entidad concreta:
+  // no la puede solicitar nadie más, ni merece la pena resumirla ni guardarla).
   const tISO = ymd(today)
-  const useful = rows.filter(r => r.fecha_fin && r.fecha_fin >= tISO)
+  const useful = rows.filter(r => r.fecha_fin && r.fecha_fin >= tISO && !esConcesionDirecta(r.tipo_convocatoria))
 
   // Resumen periodístico + importe real por beneficiario — UNA vez por
   // convocatoria (no por usuario). Best-effort: si falla, se ingiere igual

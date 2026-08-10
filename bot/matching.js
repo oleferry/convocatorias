@@ -91,8 +91,15 @@ function beneficiarioEncaja(benefArr, tipo) {
   return false
 }
 
+// "Concesión directa" = pago ya adjudicado por nombre a una entidad concreta —
+// espejo de lib/matching.ts.
+function esConcesionDirecta(tipoConvocatoria) {
+  return strip(tipoConvocatoria || '').includes('concesion directa')
+}
+
 function matchGrant(c, org, todayISO) {
   const reasons = []
+  if (esConcesionDirecta(c.tipo_convocatoria)) return { match: false, score: 0, reasons: [], tier: null }
   const isRadar = !!c.fuente && c.fuente !== 'bdns'
   const open = isRadar || (!!c.fecha_fin && c.fecha_fin >= todayISO)
   if (!open) return { match: false, score: 0, reasons: [], tier: null }

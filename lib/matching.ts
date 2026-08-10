@@ -111,11 +111,23 @@ function beneficiarioEncaja(benefArr: string[] | null | undefined, tipo: string)
   return false
 }
 
+// "Concesión directa" (canónica/instrumental/por convenio/por ley...) es un
+// pago ya adjudicado por nombre a una entidad concreta (un ayuntamiento y "su"
+// asociación vecinal, "su" club deportivo...) — no es una convocatoria abierta
+// a la que cualquier otra empresa pueda presentarse, aunque coincida provincia,
+// sector o beneficiario. "Concurrencia competitiva" (y la ausencia del campo,
+// típica del radar/privados) sí son abiertas.
+export function esConcesionDirecta(tipoConvocatoria?: string | null): boolean {
+  return strip(tipoConvocatoria || '').includes('concesion directa')
+}
+
 /** Evalúa si una convocatoria pública encaja con un perfil. */
 export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: string): MatchResult {
   const reasons: string[] = []
 
   // ── Filtros duros ──
+  if (esConcesionDirecta(c.tipo_convocatoria)) return { match: false, score: 0, reasons: [], tier: null }
+
   // El flag 'abierto' de la BDNS es poco fiable (casi siempre false): usamos el
   // PLAZO de solicitud. El radar (privadas/europeas) no trae plazo fijo aquí.
   const isRadar = !!c.fuente && c.fuente !== 'bdns'

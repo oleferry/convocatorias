@@ -5,7 +5,7 @@
 //  diario. Pensado para Server Components estáticos/ISR.
 // ================================================================
 import { createPublicSupabase } from './supabase-server'
-import { sectionLetter } from './matching'
+import { sectionLetter, esConcesionDirecta } from './matching'
 import { tituloCorto, formatEuro } from './matching'
 import type { Sector } from './sectores'
 
@@ -22,7 +22,7 @@ export interface PublicGrantCard {
   sectorLabels: string[]
 }
 
-const SELECT_FIELDS = 'codigo_bdns,titulo,organo,nivel1,ccaa,presupuesto_total,finalidad,beneficiarios,sectores,bases_url,fecha_fin,fecha_inicio,fuente,resumen_periodista,importe_beneficiario'
+const SELECT_FIELDS = 'codigo_bdns,titulo,tipo_convocatoria,organo,nivel1,ccaa,presupuesto_total,finalidad,beneficiarios,sectores,bases_url,fecha_fin,fecha_inicio,fuente,resumen_periodista,importe_beneficiario'
 
 function isOpen(fecha_fin: string | null, todayISO: string): boolean {
   return !fecha_fin || fecha_fin >= todayISO
@@ -64,11 +64,11 @@ export async function fetchOpenGrantsSummary(): Promise<{ ccaa: string | null; n
   const today = new Date().toISOString().slice(0, 10)
   const { data, error } = await sb
     .from('convocatorias_publicas')
-    .select('ccaa,nivel1,fecha_fin')
+    .select('ccaa,nivel1,fecha_fin,tipo_convocatoria')
     .or(`fecha_fin.is.null,fecha_fin.gte.${today}`)
     .limit(2000)
   if (error) { console.error('[public-grants] summary', error.message); return [] }
-  return (data || []).map((r: any) => ({ ccaa: r.ccaa, nivel1: r.nivel1 }))
+  return (data || []).filter((r: any) => !esConcesionDirecta(r.tipo_convocatoria)).map((r: any) => ({ ccaa: r.ccaa, nivel1: r.nivel1 }))
 }
 
 /** Convocatorias abiertas (estatales + de esa CCAA), opcionalmente filtradas por sector. */
@@ -82,7 +82,7 @@ export async function fetchOpenGrantsForCcaa(ccaaName: string, sector?: Sector |
     .order('fecha_fin', { ascending: true, nullsFirst: false })
     .limit(300)
   if (error) { console.error('[public-grants] ccaa', error.message); return [] }
-  let rows = (data || []).filter((r: any) => isOpen(r.fecha_fin, today))
+  let rows = (data || []).filter((r: any) => isOpen(r.fecha_fin, today) && !esConcesionDirecta(r.tipo_convocatoria))
   if (sector) rows = rows.filter((r: any) => matchesSector(r, sector))
   return rows.map(toCard)
 }
