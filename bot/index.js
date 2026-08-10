@@ -287,7 +287,7 @@ bot.onText(/^\/sugerencias\b/, async (msg) => {
   const savedSet = new Set((saved || []).map(g => g.codigo_bdns))
   const pool = [...(bdns || []), ...(radar || [])].filter(c => !savedSet.has(c.codigo_bdns))
   const hits = pool.map(c => ({ c, m: matchGrant(c, org, today) })).filter(x => x.m.match)
-    .sort((a, b) => (a.m.tier === 'sector' ? 0 : 1) - (b.m.tier === 'sector' ? 0 : 1) || b.m.score - a.m.score)
+    .sort((a, b) => b.m.score - a.m.score)
 
   if (!hits.length) return send(chatId, `🔍 Sin sugerencias por ahora para <b>${esc(org.name)}</b>. En cuanto huela algo, te aviso. Prueba /buscar para que salga a olfatear por internet.`)
 
@@ -298,11 +298,8 @@ bot.onText(/^\/sugerencias\b/, async (msg) => {
     const esTotal = !c.importe_beneficiario && c.presupuesto_total != null && (!c.fuente || c.fuente === 'bdns')
     return `<b>${esc(tituloCorto(c.titulo))}</b>${c.resumen_periodista ? `\n${esc(c.resumen_periodista)}` : ''}\n${importe ? `💰 ${esc(importe)}${esTotal ? ' (total convocatoria)' : ''}   ` : ''}${plazo}${c.bases_url ? `\n🔗 ${esc(c.bases_url)}` : ''}`
   }
-  const sector = hits.filter(x => x.m.tier === 'sector').slice(0, 5)
-  const elegibles = hits.filter(x => x.m.tier === 'elegible').slice(0, 3)
-  const parts = [`🐾 He olfateado <b>${hits.length}</b> para <b>${esc(org.name)}</b>:`]
-  if (sector.length) parts.push(`\n🎯 <b>Para tu sector</b>\n\n` + sector.map(fmt).join('\n\n'))
-  if (elegibles.length) parts.push(`\n🤝 <b>También podrías optar</b>\n\n` + elegibles.map(fmt).join('\n\n'))
+  const top = hits.slice(0, 5)
+  const parts = [`🐾 He olfateado <b>${hits.length}</b> para <b>${esc(org.name)}</b>:`, '', top.map(fmt).join('\n\n')]
   parts.push(`\n👉 Ver y guardar: ${esc(APP_URL)}/dashboard`)
   send(chatId, parts.join('\n'))
 })

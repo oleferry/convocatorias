@@ -174,7 +174,9 @@ function matchGrant(c, org, todayISO) {
     if (kwHits > 0) { score += Math.min(30, kwHits * 12); reasons.push(`${kwHits} palabra(s) clave`) }
   }
 
-  const tier = (sectorMatch || kwHits > 0) ? 'sector' : (benefMatch && !isRadar ? 'elegible' : null)
+  // Provincia y tipo de beneficiario ya son filtro duro arriba, pero por sí
+  // solos no bastan para sugerir: hace falta señal real de sector/actividad.
+  const tier = (sectorMatch || kwHits > 0) ? 'sector' : null
   return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 

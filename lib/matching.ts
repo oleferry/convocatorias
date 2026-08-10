@@ -35,9 +35,9 @@ export interface PublicGrantRow {
   importe_beneficiario?: string | null
 }
 
-// tier: 'sector' = afín a tu CNAE/IAE/actividad · 'elegible' = abierta a tu tipo
-// de entidad (pyme/autónomo…) en tu zona, aunque no sea específica de tu sector.
-export type MatchTier = 'sector' | 'elegible'
+// tier: 'sector' = afín a tu CNAE/IAE/actividad. Provincia y tipo de entidad
+// (pyme/autónomo…) son filtro duro, pero no bastan por sí solos para sugerir.
+export type MatchTier = 'sector'
 export interface MatchResult { match: boolean; score: number; reasons: string[]; tier: MatchTier | null }
 
 export function strip(s: string): string {
@@ -215,15 +215,12 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
     if (kwHits > 0) { score += Math.min(30, kwHits * 12); reasons.push(`${kwHits} palabra(s) clave`) }
   }
 
-  // Dos niveles:
-  //  • 'sector'   → coincide tu CNAE/IAE o una palabra clave de tu actividad.
-  //  • 'elegible' → no es de tu sector, pero está abierta a tu tipo de entidad
-  //                 (pyme/autónomo…) y en tu zona: podrías optar igualmente.
-  // El nivel 'elegible' (abierto a tu tipo de entidad) solo se aplica a la BDNS,
-  // donde el beneficiario es un dato fiable. El radar (privadas/europeas) casi
-  // siempre dice "pymes", así que ahí exigimos sector/actividad para no meter
-  // ruido (programas europeos de I+D, aceleradoras de startups, etc.).
-  const tier: MatchTier | null = (sectorMatch || kwHits > 0) ? 'sector' : (benefMatch && !isRadar ? 'elegible' : null)
+  // La provincia/CCAA y el tipo de beneficiario (pyme/autónomo…) ya se exigieron
+  // arriba como filtro duro, pero por sí solos NO son señal suficiente: sin
+  // coincidencia real de sector (CNAE/IAE) o palabra clave de tu actividad, no
+  // se sugiere. "Encaja con tu tipo de entidad" solo suma puntos si ya hay
+  // señal de sector — no basta para hacer match por sí sola.
+  const tier: MatchTier | null = (sectorMatch || kwHits > 0) ? 'sector' : null
   return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 

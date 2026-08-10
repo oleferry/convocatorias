@@ -48,12 +48,8 @@ export async function GET(req: NextRequest) {
     const m = matchGrant(c, org as Organization, today)
     if (m.match) suggestions.push({ ...c, matchScore: m.score, matchReason: m.reasons.join(' · '), tier: m.tier })
   }
-  // Nivel 'sector' primero; dentro de cada nivel, por score y luego por plazo.
-  const rank = (t: string | null) => (t === 'sector' ? 0 : 1)
-  suggestions.sort((a, b) =>
-    rank(a.tier) - rank(b.tier) ||
-    b.matchScore - a.matchScore ||
-    (a.fecha_fin || '').localeCompare(b.fecha_fin || ''))
+  // Por score y luego por plazo (todas las que llegan aquí ya son de su sector).
+  suggestions.sort((a, b) => b.matchScore - a.matchScore || (a.fecha_fin || '').localeCompare(b.fecha_fin || ''))
 
   return NextResponse.json({ suggestions: suggestions.slice(0, 60) })
 }
