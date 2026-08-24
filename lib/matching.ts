@@ -68,10 +68,40 @@ export function sectionLetter(div: string): string | null {
   if (n <= 88) return 'Q'; if (n <= 93) return 'R'; if (n <= 96) return 'S'; if (n <= 98) return 'T'; return 'U'
 }
 
+// IAE profesionales (sección 2ª, prefijo "P") y artísticas (sección 3ª,
+// prefijo "A") NO siguen la numeración de la sección empresarial: sus dígitos
+// significan otra cosa. Mapearlos por el 1er dígito como si fueran
+// empresariales clasificaba a un abogado como "transporte" y a un arquitecto
+// o un médico como "industria manufacturera" — con falsos positivos reales
+// (un arquitecto encajando con premios de panadería, ambos letra C).
+const IAE_ESPECIALES: Record<string, string> = {
+  P411:  'Q',  // Médicos
+  P421:  'Q',  // Odontólogos
+  P451:  'M',  // Veterinarios (CNAE 75 → M)
+  P460:  'Q',  // Fisioterapeutas, ópticos y otros sanitarios
+  P321:  'M',  // Ingenieros
+  P411A: 'M',  // Arquitectos y aparejadores
+  P731:  'M',  // Abogados
+  P741:  'M',  // Economistas, contables
+  P742:  'M',  // Graduados sociales, gestores administrativos
+  P751:  'M',  // Publicidad y relaciones públicas
+  P763:  'J',  // Programadores y analistas informáticos (CNAE 62 → J)
+  P776:  'M',  // Doctores, licenciados, técnicos y consultores
+  P861:  'R',  // Pintores, escultores, ceramistas y artesanos
+  A011:  'R',  // Actores
+  A032:  'R',  // Cantantes, músicos
+  A041:  'R',  // Maestros y directores de música
+}
+
 // IAE: división (1er dígito del epígrafe, sección empresarial) → letra de sección
 // CNAE aproximada, para que elegir IAE también alimente el cruce por sector.
 function iaeSectionLetter(epigrafe: string): string | null {
-  const d = String(epigrafe).replace(/\D/g, '')[0]
+  const code = String(epigrafe || '').trim().toUpperCase()
+  if (IAE_ESPECIALES[code]) return IAE_ESPECIALES[code]
+  // Cualquier otro código profesional/artístico no listado: no arriesgamos un
+  // mapeo empresarial equivocado, mejor ninguna señal que una falsa.
+  if (/^[PA]/.test(code)) return null
+  const d = code.replace(/\D/g, '')[0]
   switch (d) {
     case '0': return 'A'   // ganadería independiente
     case '1': return 'B'   // energía y agua

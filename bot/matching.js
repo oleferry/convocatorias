@@ -51,8 +51,19 @@ function sectionLetter(div) {
   if (n <= 88) return 'Q'; if (n <= 93) return 'R'; if (n <= 96) return 'S'; if (n <= 98) return 'T'; return 'U'
 }
 
+// IAE profesionales ("P") y artísticas ("A") no siguen la numeración
+// empresarial — espejo de lib/matching.ts.
+const IAE_ESPECIALES = {
+  P411: 'Q', P421: 'Q', P451: 'M', P460: 'Q', P321: 'M', P411A: 'M',
+  P731: 'M', P741: 'M', P742: 'M', P751: 'M', P763: 'J', P776: 'M',
+  P861: 'R', A011: 'R', A032: 'R', A041: 'R',
+}
+
 function iaeSectionLetter(epigrafe) {
-  const d = String(epigrafe).replace(/\D/g, '')[0]
+  const code = String(epigrafe || '').trim().toUpperCase()
+  if (IAE_ESPECIALES[code]) return IAE_ESPECIALES[code]
+  if (/^[PA]/.test(code)) return null
+  const d = code.replace(/\D/g, '')[0]
   switch (d) {
     case '0': return 'A'
     case '1': return 'B'

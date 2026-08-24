@@ -39,16 +39,13 @@ function progKey(nombre: string): string {
   return slug(base).split('-').filter(Boolean).slice(0, 6).join('-') || slug(nombre)
 }
 
-// Estampa el sector del perfil (división CNAE) para que la convocatoria privada
-// encaje en "Para tu sector" de ese tipo de negocio.
-function sectoresOf(org: any): { codigo: string; descripcion: string }[] {
-  const out: { codigo: string; descripcion: string }[] = []
-  const seen = new Set<string>()
-  const add = (v: any) => { const d = String(v).replace(/\D/g, '').slice(0, 2); if (d && !seen.has(d)) { seen.add(d); out.push({ codigo: d, descripcion: org.cnae_desc || 'Sector del perfil' }) } }
-  for (const c of (org.cnaes || [])) add(c)
-  if (org.cnae) add(org.cnae)
-  return out
-}
+// NO estampamos sectores sobre los programas descubiertos. Antes se copiaban
+// las divisiones CNAE del perfil que disparó la búsqueda, pero una división es
+// demasiado ancha: una panadería con CNAE 4724 (comercio minorista de pan)
+// estampaba la división "47" = TODO el comercio minorista, así que sus premios
+// de panadería salían como "Tu sector encaja" a una óptica (CNAE 4773).
+// El texto real del programa (título, finalidad, beneficiarios) ya sirve de
+// señal a través del cruce por palabras clave, y es un dato honesto.
 
 export async function syncDescubrimiento(sb: any, opts: { max?: number; reset?: boolean } = {}): Promise<{ sectores: number; anadidas: number }> {
   const max = opts.max ?? 6
@@ -69,7 +66,6 @@ export async function syncDescubrimiento(sb: any, opts: { max?: number; reset?: 
   for (const o of targets) {
     let items: any[] = []
     try { items = await discoverPrivateGrants(o as Organization) } catch (e: any) { console.warn('[descubrir]', e?.message); continue }
-    const sect = sectoresOf(o)
     const rows: any[] = []
     const seenKeys = new Set<string>()
     for (const it of (items || [])) {
@@ -87,7 +83,7 @@ export async function syncDescubrimiento(sb: any, opts: { max?: number; reset?: 
         tipo_convocatoria: 'Premio / programa privado (IA)',
         finalidad: it.finalidad || null,
         beneficiarios: Array.isArray(it.beneficiarios) ? it.beneficiarios.map(String) : [],
-        sectores: sect,
+        sectores: [],
         regiones: [],
         bases_url: it.url,
         abierto: true, fecha_inicio: null, fecha_fin: null, fecha_recepcion: null, presupuesto_total: null,
