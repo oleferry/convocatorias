@@ -92,14 +92,24 @@ function beneficiarioEncaja(benefArr: string[] | null | undefined, tipo: string)
   for (const b of (benefArr || [])) {
     const s = strip(b)
     const noEcon = s.includes('no desarrollan')
-    if (tipo === 'pyme' || tipo === 'gran_empresa') {
-      if (s.includes('pyme') || s.includes('microempresa')) return true
-      if (s.includes('desarrollan actividad econ') && !noEcon) return true
+    // "PERSONAS JURÍDICAS" = sociedades (nunca autónomos, que son persona
+    // física) · "PERSONA FÍSICA" a secas = puede ser autónomo, nunca una
+    // sociedad. Sin esto, "personas jurídicas que desarrollan actividad
+    // económica" colaba como match genérico para un autónomo, y viceversa.
+    const soloJuridica = s.includes('personas juridicas') && !s.includes('persona fisica') && !s.includes('personas fisicas')
+    const soloFisica = (s.includes('persona fisica') || s.includes('personas fisicas')) && !s.includes('personas juridicas') && !s.includes('persona juridica')
+    if (tipo === 'pyme') {
+      if (s.includes('pyme') || s.includes('microempresa') || s.includes('pequena') || s.includes('mediana')) return true
+      if (s.includes('desarrollan actividad econ') && !noEcon && !soloFisica) return true
+    }
+    if (tipo === 'gran_empresa') {
+      if (s.includes('gran empresa') || s.includes('grandes empresas')) return true
+      if (s.includes('desarrollan actividad econ') && !noEcon && !soloFisica) return true
     }
     if (tipo === 'autonomo') {
       if (s.includes('pyme')) return true
       if ((/aut[oó]nom/.test(s) || s.includes('persona fisica') || s.includes('personas fisicas')) && !noEcon) return true
-      if (s.includes('desarrollan actividad econ') && !noEcon) return true
+      if (s.includes('desarrollan actividad econ') && !noEcon && !soloJuridica) return true
     }
     if (tipo === 'asociacion' || tipo === 'fundacion') {
       if (s.includes('sin animo') || s.includes('asociaci') || s.includes('fundaci') || s.includes('no lucr') || noEcon) return true
@@ -200,6 +210,16 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   // ── Señal 2: tipo de beneficiario ──
   const benefMatch = beneficiarioEncaja(c.beneficiarios, org.tipo_entidad)
   if (benefMatch) { score += 25; reasons.push('Encaja con tu tipo de entidad') }
+
+  // Filtro duro: si la BDNS especifica un beneficiario concreto (lista corta,
+  // no genérica) y tu tipo de entidad no encaja, fuera — da igual que
+  // coincidan sector o palabras clave. Evita que una ayuda solo para
+  // sociedades le llegue a un autónomo, o al revés. Con el radar (privados/
+  // europeos) el dato de beneficiario es demasiado impreciso ("pymes" para
+  // casi todo) para usarlo como filtro duro, así que ahí no se aplica.
+  const benefList = c.beneficiarios || []
+  const benefEspecifico = benefList.length > 0 && benefList.length <= 5
+  if (!isRadar && benefEspecifico && !benefMatch) return { match: false, score: 0, reasons: [], tier: null }
 
   // ── Señal 3: keywords (keywords + actividad + descripción CNAE/IAE) ──
   // La CCAA/provincia/municipio del perfil casi siempre aparecen también en el

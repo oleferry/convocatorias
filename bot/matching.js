@@ -72,14 +72,20 @@ function beneficiarioEncaja(benefArr, tipo) {
   for (const b of (benefArr || [])) {
     const s = strip(b)
     const noEcon = s.includes('no desarrollan')
-    if (tipo === 'pyme' || tipo === 'gran_empresa') {
-      if (s.includes('pyme') || s.includes('microempresa')) return true
-      if (s.includes('desarrollan actividad econ') && !noEcon) return true
+    const soloJuridica = s.includes('personas juridicas') && !s.includes('persona fisica') && !s.includes('personas fisicas')
+    const soloFisica = (s.includes('persona fisica') || s.includes('personas fisicas')) && !s.includes('personas juridicas') && !s.includes('persona juridica')
+    if (tipo === 'pyme') {
+      if (s.includes('pyme') || s.includes('microempresa') || s.includes('pequena') || s.includes('mediana')) return true
+      if (s.includes('desarrollan actividad econ') && !noEcon && !soloFisica) return true
+    }
+    if (tipo === 'gran_empresa') {
+      if (s.includes('gran empresa') || s.includes('grandes empresas')) return true
+      if (s.includes('desarrollan actividad econ') && !noEcon && !soloFisica) return true
     }
     if (tipo === 'autonomo') {
       if (s.includes('pyme')) return true
       if ((/aut[oó]nom/.test(s) || s.includes('persona fisica') || s.includes('personas fisicas')) && !noEcon) return true
-      if (s.includes('desarrollan actividad econ') && !noEcon) return true
+      if (s.includes('desarrollan actividad econ') && !noEcon && !soloJuridica) return true
     }
     if (tipo === 'asociacion' || tipo === 'fundacion') {
       if (s.includes('sin animo') || s.includes('asociaci') || s.includes('fundaci') || s.includes('no lucr') || noEcon) return true
@@ -160,6 +166,12 @@ function matchGrant(c, org, todayISO) {
 
   const benefMatch = beneficiarioEncaja(c.beneficiarios, org.tipo_entidad)
   if (benefMatch) { score += 25; reasons.push('Encaja con tu tipo de entidad') }
+
+  // Filtro duro: beneficiario específico (lista corta) que no encaja con tu
+  // tipo de entidad — fuera, aunque coincida sector o palabras clave.
+  const benefList = c.beneficiarios || []
+  const benefEspecifico = benefList.length > 0 && benefList.length <= 5
+  if (!isRadar && benefEspecifico && !benefMatch) return { match: false, score: 0, reasons: [], tier: null }
 
   const profileTokens = new Set([...tokens(org.keywords), ...tokens(org.actividad), ...tokens(org.cnae_desc), ...tokens(org.iae_desc)])
   for (const t of STOP_TOKENS) profileTokens.delete(t)
