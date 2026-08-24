@@ -202,8 +202,14 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   if (benefMatch) { score += 25; reasons.push('Encaja con tu tipo de entidad') }
 
   // ── Señal 3: keywords (keywords + actividad + descripción CNAE/IAE) ──
+  // La CCAA/provincia/municipio del perfil casi siempre aparecen también en el
+  // texto de la convocatoria (es NORMAL que una convocatoria de Valladolid
+  // diga "Valladolid") — pero eso ya se exigió arriba como filtro duro, así
+  // que contarlo TAMBIÉN como "palabra clave de tu sector" es una coincidencia
+  // vacía, no una señal real de afinidad. Se descarta del set de keywords.
   const profileTokens = new Set([...tokens(org.keywords), ...tokens(org.actividad), ...tokens(org.cnae_desc), ...tokens(org.iae_desc)])
   for (const t of STOP_TOKENS) profileTokens.delete(t)
+  for (const geo of [org.ccaa, org.provincia, org.municipio]) for (const t of tokens(geo)) profileTokens.delete(t)
   let kwHits = 0
   if (profileTokens.size) {
     const hay = strip([

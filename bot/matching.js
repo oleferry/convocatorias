@@ -163,6 +163,7 @@ function matchGrant(c, org, todayISO) {
 
   const profileTokens = new Set([...tokens(org.keywords), ...tokens(org.actividad), ...tokens(org.cnae_desc), ...tokens(org.iae_desc)])
   for (const t of STOP_TOKENS) profileTokens.delete(t)
+  for (const geo of [org.ccaa, org.provincia, org.municipio]) for (const t of tokens(geo)) profileTokens.delete(t)
   let kwHits = 0
   if (profileTokens.size) {
     const hay = strip([
