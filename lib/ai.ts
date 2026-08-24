@@ -83,7 +83,7 @@ Reglas de relevancia (estrictas):
 - Cada resultado debe estar dirigido específicamente a empresas del sector/actividad indicados, no solo "pymes en general" ni resultados de otro sector que hayas encontrado de paso.
 - Si buscas y no encuentras premios/ayudas realmente específicos para este sector y actividad, devuelve un array vacío []. Es preferible devolver menos (o ninguno) que rellenar con resultados de otro sector o de un colectivo profesional distinto.
 - Descarta cualquier programa público, sanitario, asistencial o de la administración (aunque no esté en el BOE/BDNS): solo cuentan iniciativas de entidades privadas (empresas, fundaciones, bancos, patronales, colegios profesionales del MISMO sector).
-Devuelve SOLO un array JSON sin backticks ni texto alrededor, máximo 6, con programas reales y su web oficial:
+Devuelve SOLO un array JSON sin backticks ni texto alrededor, máximo 4, con programas reales y su web oficial:
 [{"nombre":"","entidad":"","finalidad":"1 frase breve (máx 180 caracteres) con palabras clave del sector","beneficiarios":["máx 3, breves"],"ambito":"nacional|autonómico","url":"https://web-oficial-real"}]
 No inventes programas ni URLs.`
   const user = `Perfil de la empresa:
@@ -95,7 +95,9 @@ No inventes programas ni URLs.`
 - Keywords: ${org.keywords || '—'}
 
 Busca premios, concursos y ayudas PRIVADAS relevantes para este negocio.`
-  const text = await callAI(sys, user, true, 4000, 'descubrir_privados', { userId: (org as any).user_id, orgId: (org as any).id })
+  // 1500 tokens (antes 4000): con máximo 4 programas por respuesta sobra, y
+  // esta función es la más cara del sistema (búsqueda web incluida).
+  const text = await callAI(sys, user, true, 1500, 'descubrir_privados', { userId: (org as any).user_id, orgId: (org as any).id })
   const clean = text.replace(/```json|```/g, '').trim()
   try { return extractJSON(clean, '[') } catch { /* puede venir truncado */ }
   // Recuperación: rescata los objetos {...} completos aunque falte cerrar el array.

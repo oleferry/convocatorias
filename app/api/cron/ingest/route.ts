@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     // exceder el tiempo de la función. El resto de días sale barato.
     let descubrir: any = null
     if (new Date().getDay() === 1 && process.env.ANTHROPIC_API_KEY) {
-      try { descubrir = await syncDescubrimiento(sb, { max: 3 }) } catch (e: any) { console.warn('[cron/ingest] descubrir:', e?.message) }
+      try { descubrir = await syncDescubrimiento(sb, { max: 2 }) } catch (e: any) { console.warn('[cron/ingest] descubrir:', e?.message) }
     }
     return NextResponse.json({ ok: true, ...result, radar, descubrir })
   } catch (e: any) {

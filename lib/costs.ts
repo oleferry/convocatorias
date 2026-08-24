@@ -33,6 +33,22 @@ const DAILY_GLOBAL_CAP_EUR = 1
 const FX_USD_PER_EUR = 1 / 0.92 // mismo tipo de cambio aproximado que /admin/costs
 const DAILY_GLOBAL_CAP_USD = DAILY_GLOBAL_CAP_EUR * FX_USD_PER_EUR
 
+// Sub-tope para el descubrimiento IA de privados: es con diferencia lo más
+// caro (búsqueda web + respuesta larga, ~0,39€ por llamada) y corre solo los
+// lunes. Sin este freno, 3 llamadas se comían el presupuesto entero del día y
+// dejaban sin servicio a todo lo demás — incluidos los resúmenes de catálogo,
+// que cuestan ~0,005€ (80 veces menos) y son los que mantienen el producto al
+// día. Ocurrió de verdad: 1,17€ en 3 llamadas.
+const DISCOVERY_SHARE = 0.4 // como mucho el 40% del tope diario
+const DISCOVERY_CAP_USD = DAILY_GLOBAL_CAP_USD * DISCOVERY_SHARE
+const DISCOVERY_FEATURES = new Set(['descubrir_privados', 'search_web'])
+
+// Funciones baratas que mantienen el catálogo al día. No las bloquea el tope
+// general (aunque sí el suyo propio) para que un trabajo caro no pueda dejar
+// el catálogo desactualizado; su coste unitario es marginal.
+const MANTENIMIENTO_FEATURES = new Set(['resumen_catalogo'])
+const MANTENIMIENTO_CAP_USD = DAILY_GLOBAL_CAP_USD * 0.5
+
 // Solo se aplican a funciones disparadas por un clic de un usuario concreto;
 // las funciones de catálogo (descubrimiento, resumen de catálogo) no tienen
 // tope por usuario porque no las dispara un usuario, ya están acotadas por
@@ -55,6 +71,14 @@ async function globalCostTodayUsd(): Promise<number> {
   return (data || []).reduce((sum: number, r: any) => sum + (r.cost_usd || 0), 0)
 }
 
+/** Gasto de hoy solo en un grupo de funciones (para los sub-topes). */
+async function costTodayUsdFor(features: Set<string>): Promise<number> {
+  const sb = createAdminSupabase()
+  const { data } = await sb.from('api_usage_log').select('cost_usd')
+    .in('feature', Array.from(features)).gte('created_at', startOfTodayIso())
+  return (data || []).reduce((sum: number, r: any) => sum + (r.cost_usd || 0), 0)
+}
+
 async function userFeatureCountToday(userId: string, feature: string): Promise<number> {
   const sb = createAdminSupabase()
   const { count } = await sb.from('api_usage_log').select('id', { count: 'exact', head: true })
@@ -74,6 +98,25 @@ export interface RateLimitResult { allowed: boolean; reason?: string }
 // la llamada — un fallo de lectura no debe bloquear todo el producto.
 export async function checkRateLimit(feature: string, userId?: string | null): Promise<RateLimitResult> {
   try {
+    // Mantenimiento del catálogo: tiene su propio tope y no lo frena el
+    // general, para que un trabajo caro no pueda dejar el catálogo obsoleto.
+    if (MANTENIMIENTO_FEATURES.has(feature)) {
+      const gastado = await costTodayUsdFor(MANTENIMIENTO_FEATURES)
+      if (gastado >= MANTENIMIENTO_CAP_USD) {
+        return { allowed: false, reason: 'Alcanzado el tope diario de mantenimiento del catálogo. Continúa mañana.' }
+      }
+      return { allowed: true }
+    }
+
+    // Descubrimiento IA: lo más caro del sistema, con su propio sub-tope para
+    // que no pueda agotar el presupuesto del día él solo.
+    if (DISCOVERY_FEATURES.has(feature)) {
+      const gastado = await costTodayUsdFor(DISCOVERY_FEATURES)
+      if (gastado >= DISCOVERY_CAP_USD) {
+        return { allowed: false, reason: 'Alcanzado el tope diario de búsqueda con IA. Vuelve a intentarlo mañana.' }
+      }
+    }
+
     const globalCost = await globalCostTodayUsd()
     if (globalCost >= DAILY_GLOBAL_CAP_USD) {
       // Por encima del tope diario gratuito: solo usuarios de pago siguen.
