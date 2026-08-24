@@ -189,9 +189,11 @@ function matchGrant(c, org, todayISO) {
   for (const geo of [org.ccaa, org.provincia, org.municipio]) for (const t of tokens(geo)) profileTokens.delete(t)
   let kwHits = 0
   if (profileTokens.size) {
+    // Descripciones de sector solo si la lista está acotada (ver 'focused'):
+    // una convocatoria con los 21 sectores contiene toda actividad imaginable.
     const hay = strip([
       c.titulo, c.finalidad,
-      ...(c.sectores || []).map(s => s.descripcion),
+      ...(focused ? (c.sectores || []).map(s => s.descripcion) : []),
       ...(c.beneficiarios || []),
     ].join(' '))
     for (const t of profileTokens) if (hay.includes(t)) kwHits++

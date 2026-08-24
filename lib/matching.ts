@@ -262,9 +262,15 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   for (const geo of [org.ccaa, org.provincia, org.municipio]) for (const t of tokens(geo)) profileTokens.delete(t)
   let kwHits = 0
   if (profileTokens.size) {
+    // Las descripciones de sector solo cuentan si la lista está ACOTADA (mismo
+    // criterio que 'focused' arriba). Si la convocatoria lista los 21 sectores
+    // —o sea, está abierta a todo el mundo—, ese texto contiene el nombre de
+    // cualquier actividad imaginable, así que TODO perfil encontraría ahí su
+    // palabra clave: un periódico digital casaba con "ACTIVIDADES DE EDICIÓN…"
+    // en una ayuda a centros especiales de empleo.
     const hay = strip([
       c.titulo, c.finalidad,
-      ...(c.sectores || []).map(s => s.descripcion),
+      ...(focused ? (c.sectores || []).map(s => s.descripcion) : []),
       ...(c.beneficiarios || []),
     ].join(' '))
     for (const t of profileTokens) if (hay.includes(t)) kwHits++

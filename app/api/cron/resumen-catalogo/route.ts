@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const today = new Date().toISOString().slice(0, 10)
 
     const { data: pending, error } = await sb.from('convocatorias_publicas')
-      .select('codigo_bdns,titulo,organo,finalidad,beneficiarios,anuncio_texto,presupuesto_total')
+      .select('codigo_bdns,titulo,organo,finalidad,beneficiarios,anuncio_texto,presupuesto_total,ccaa,provincia,nivel1')
       .or('fuente.is.null,fuente.eq.bdns')
       .gte('fecha_fin', today)
       .is('resumen_periodista', null)
