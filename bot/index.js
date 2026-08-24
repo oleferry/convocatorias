@@ -77,6 +77,112 @@ function send(chatId, text, extra = {}) {
   return bot.sendMessage(chatId, text, { parse_mode: 'HTML', disable_web_page_preview: true, ...extra })
 }
 
+// ── "Te lo tramito" ────────────────────────────────────────────
+// Espejo de lib/tramitacion.ts (lista FIJA, sin IA: coste 0).
+const DOC_COMUNES = [
+  'DNI/NIE del solicitante o del representante legal',
+  'Certificado de estar al corriente con la Agencia Tributaria',
+  'Certificado de estar al corriente con la Seguridad Social',
+  'Certificado de titularidad de la cuenta bancaria',
+  'Alta en el IAE (modelo 036 o 037)',
+  'Presupuesto o facturas proforma de lo que quieres financiar',
+]
+const DOC_AUTONOMO = ['Alta en el RETA (resolución o informe de vida laboral)']
+const DOC_SOCIEDAD = [
+  'Escrituras de constitución y estatutos de la sociedad',
+  'CIF de la sociedad',
+  'Poder de representación de quien firma la solicitud',
+]
+const DOC_AVISO = 'Es la documentación habitual: la definitiva depende de cada convocatoria y te la confirmamos al contactarte.'
+
+function documentacionHabitual(tipoEntidad) {
+  return [...(tipoEntidad === 'autonomo' ? DOC_AUTONOMO : DOC_SOCIEDAD), ...DOC_COMUNES]
+}
+
+// Botón inline para pedir la tramitación de una convocatoria concreta.
+// callback_data tiene un límite de 64 bytes, y el codigo_bdns es corto.
+function botonTramitar(codigoBdns) {
+  if (!codigoBdns) return {}
+  return { reply_markup: { inline_keyboard: [[{ text: '🤝 Te lo tramito', callback_data: `t:${codigoBdns}`.slice(0, 64) }]] } }
+}
+
+// Aviso por email al admin (espejo de /api/leads y /api/tramitar).
+async function notifyAdminLead(lead) {
+  const key = process.env.RESEND_API_KEY
+  const to = process.env.LEADS_NOTIFY_EMAIL || (process.env.ADMIN_EMAILS || '').split(',')[0].trim()
+  const from = process.env.DIGEST_FROM || 'DamePerrasPerro <onboarding@resend.dev>'
+  if (!key || !to) return false
+  const html = `<div style="font-family:Barlow,Arial,sans-serif;max-width:560px;margin:0 auto">
+    <h2 style="color:#1A1A18">🐾 Nuevo lead (telegram)</h2>
+    <div style="background:#F0F1EC;border-radius:10px;padding:16px">
+      <div style="font-weight:700;font-size:15px">${esc(lead.grant_titulo)}</div>
+      ${lead.grant_url ? `<div><a href="${esc(lead.grant_url)}">${esc(lead.grant_url)}</a></div>` : ''}
+      <hr style="border:none;border-top:1px solid #E2E4DC;margin:12px 0"/>
+      <div>👤 <b>${esc(lead.contacto_nombre || '—')}</b></div>
+      <div>✉️ ${esc(lead.contacto_email || '—')}</div>
+    </div>
+    <p style="margin-top:16px"><a href="${esc(APP_URL)}/admin/leads" style="background:#C99A3D;color:#1A1305;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:800">Gestionar en el panel →</a></p>
+  </div>`
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to, subject: `🐾 Nuevo lead: ${lead.grant_titulo}`.slice(0, 90), html }),
+    })
+    return r.ok
+  } catch (e) { console.warn('[notifyAdminLead]', e.message); return false }
+}
+
+bot.on('callback_query', async (q) => {
+  const data = q.data || ''
+  const chatId = q.message && q.message.chat && q.message.chat.id
+  if (!data.startsWith('t:') || !chatId) return
+  const codigo = data.slice(2)
+
+  const ack = (text) => bot.answerCallbackQuery(q.id, { text }).catch(() => {})
+  try {
+    const user = await getUser(chatId)
+    if (!user) { ack('Conecta tu cuenta primero'); return send(chatId, '🐾 Antes conéctame desde tu panel → <b>"Conectar Telegram"</b>.') }
+
+    const [{ data: conv }, { data: orgs }] = await Promise.all([
+      sb.from('convocatorias_publicas').select('codigo_bdns, titulo, bases_url, fuente').eq('codigo_bdns', codigo).maybeSingle(),
+      sb.from('organizations').select('id, tipo_entidad').eq('user_id', user.id).eq('is_archived', false)
+        .order('is_default', { ascending: false }).order('created_at').limit(1),
+    ])
+    const org = (orgs || [])[0]
+    const titulo = tituloCorto(conv && conv.titulo) || 'Convocatoria'
+
+    const { data: yaExiste } = await sb.from('leads').select('id').eq('user_id', user.id).eq('codigo_bdns', codigo).limit(1)
+    if (yaExiste && yaExiste.length) {
+      ack('Ya teníamos tu solicitud')
+      return send(chatId, `🐾 Esta ya nos la habías pedido: <b>${esc(titulo)}</b>. Te contactamos en breve.`)
+    }
+
+    const lead = {
+      user_id: user.id, org_id: (org && org.id) || null,
+      codigo_bdns: codigo, grant_titulo: titulo.slice(0, 300),
+      grant_url: (conv && conv.bases_url) || null, fuente: (conv && conv.fuente) || null,
+      contacto_nombre: user.full_name || null, contacto_email: user.email || null,
+      origen: 'telegram',
+    }
+    const { error } = await sb.from('leads').insert(lead)
+    if (error) throw new Error(error.message)
+
+    notifyAdminLead(lead).catch(() => {})
+    ack('¡Recibido! 🦴')
+    const docs = documentacionHabitual(org && org.tipo_entidad)
+    send(chatId, [
+      `🦴 <b>¡Hecho!</b> Te pongo en manos de una gestoría que conoce <b>${esc(titulo)}</b>. Te contactamos en breve.`,
+      '', '📁 <b>Ve preparando esto:</b>',
+      ...docs.map(d => `• ${esc(d)}`),
+      '', `<i>${esc(DOC_AVISO)}</i>`,
+    ].join('\n'))
+  } catch (e) {
+    console.error('[callback tramitar]', e)
+    ack('No se pudo registrar')
+    send(chatId, '😕 No he podido registrar la solicitud. Pídela desde el panel: ' + esc(APP_URL) + '/dashboard')
+  }
+})
+
 // Busca el usuario web vinculado a este chat de Telegram
 async function getUser(chatId) {
   const { data, error } = await sb.from('users').select('*').eq('telegram_id', chatId).maybeSingle()
@@ -299,9 +405,12 @@ bot.onText(/^\/sugerencias\b/, async (msg) => {
     return `<b>${esc(tituloCorto(c.titulo))}</b>${c.resumen_periodista ? `\n${esc(c.resumen_periodista)}` : ''}\n${importe ? `💰 ${esc(importe)}${esTotal ? ' (total convocatoria)' : ''}   ` : ''}${plazo}${c.bases_url ? `\n🔗 ${esc(c.bases_url)}` : ''}`
   }
   const top = hits.slice(0, 5)
-  const parts = [`🐾 He olfateado <b>${hits.length}</b> para <b>${esc(org.name)}</b>:`, '', top.map(fmt).join('\n\n')]
-  parts.push(`\n👉 Ver y guardar: ${esc(APP_URL)}/dashboard`)
-  send(chatId, parts.join('\n'))
+  await send(chatId, `🐾 He olfateado <b>${hits.length}</b> para <b>${esc(org.name)}</b>. Te paso las ${top.length} mejores:`)
+  // Una por mensaje: así cada una lleva su propio botón "Te lo tramito".
+  for (const x of top) {
+    await send(chatId, fmt(x), botonTramitar(x.c.codigo_bdns))
+  }
+  send(chatId, `👉 Ver y guardar todas: ${esc(APP_URL)}/dashboard`)
 })
 
 bot.onText(/^\/buscar\b/, async (msg) => {
@@ -504,7 +613,8 @@ async function runDeadlineAlerts() {
         await send(user.telegram_id,
           `⏰ Que se te echa el tiempo encima: quedan <b>${d} día${d === 1 ? '' : 's'}</b>.\n\n${grantLine(g)}` +
           (g.url ? `\n\n🔗 ${esc(g.url)}` : '') +
-          `\n\nLuego no digas que nadie te avisó. 😏`)
+          `\n\nLuego no digas que nadie te avisó. 😏`,
+          botonTramitar(g.codigo_bdns))
         await sb.from('alerts_sent').insert({
           grant_id: g.id, user_id: user.id, channel: 'telegram', days_before: d,
         })

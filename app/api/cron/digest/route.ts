@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabase } from '@/lib/supabase-server'
 import { matchGrant, formatEuro, tituloCorto, type PublicGrantRow } from '@/lib/matching'
+import { tramitarUrl } from '@/lib/tramitacion'
 import type { Organization } from '@/lib/types'
 
 export const runtime = 'nodejs'
@@ -34,6 +35,7 @@ function composeTelegram(user: any, items: any[]) {
       `💰 ${esc(importe || '—')}${esTotal ? ' (total convocatoria)' : ''}   ·   ⏳ ${esc(plazoTxt(c.fecha_fin))}`,
       it.reason ? `💡 ${esc(it.reason)}` : null,
       c.bases_url ? `🔗 ${esc(c.bases_url)}` : null,
+      `🤝 <a href="${esc(tramitarUrl(APP_URL, user.id, c.codigo_bdns))}">Te la tramito</a>`,
     ].filter(Boolean).join('\n')
   }).join('\n\n──────────\n\n')
   return [
@@ -64,7 +66,8 @@ function composeEmail(user: any, items: any[]) {
       ${esTotal ? `<div style="font-size:11px;color:${T.light};margin-bottom:6px">Presupuesto total de la convocatoria</div>` : ''}
       <div style="font-size:13px;font-weight:700;color:${plazoColor};margin-bottom:8px">⏳ ${esc(plazoTxt(c.fecha_fin))}</div>
       ${it.reason ? `<div style="display:inline-block;background:#EDE6F7;color:${T.purple};font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;margin-bottom:8px">💡 ${esc(it.reason)}</div>` : ''}
-      ${c.bases_url ? `<div><a href="${esc(c.bases_url)}" style="font-size:13px;color:${T.amber};font-weight:600;text-decoration:none">🔗 Ver las bases →</a></div>` : ''}
+      ${c.bases_url ? `<div style="margin-bottom:12px"><a href="${esc(c.bases_url)}" style="font-size:13px;color:${T.amber};font-weight:600;text-decoration:none">🔗 Ver las bases →</a></div>` : ''}
+      <div><a href="${esc(tramitarUrl(APP_URL, user.id, c.codigo_bdns))}" style="display:inline-block;background:${T.amber};color:#1A1305;font-size:13.5px;font-weight:800;text-decoration:none;padding:9px 18px;border-radius:8px">🤝 Te la tramito</a></div>
     </div>`
   }).join('')
   const html = `
