@@ -87,13 +87,38 @@ function composeEmail(user: any, items: any[]) {
   return { subject, html }
 }
 
+// Telegram corta los mensajes en 4.096 caracteres: un digest largo (20
+// convocatorias) los supera y la API devuelve error, así que el envío fallaba
+// entero en silencio. Troceamos por el separador entre convocatorias para no
+// partir ninguna por la mitad ni romper el HTML.
+const TG_LIMITE = 3800
+
+function trocearTelegram(texto: string): string[] {
+  if (texto.length <= TG_LIMITE) return [texto]
+  const bloques = texto.split('\n\n──────────\n\n')
+  const trozos: string[] = []
+  let actual = ''
+  for (const b of bloques) {
+    const candidato = actual ? `${actual}\n\n──────────\n\n${b}` : b
+    if (candidato.length > TG_LIMITE && actual) { trozos.push(actual); actual = b }
+    else actual = candidato
+  }
+  if (actual) trozos.push(actual)
+  // Un bloque suelto que ya pase del límite: corte duro como último recurso.
+  return trozos.flatMap(t => t.length <= TG_LIMITE ? [t] : (t.match(new RegExp(`[\\s\\S]{1,${TG_LIMITE}}`, 'g')) || []))
+}
+
 async function sendTelegram(chatId: any, html: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN; if (!token) return false
-  const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML', disable_web_page_preview: true }),
-  })
-  return r.ok
+  let todoOk = true
+  for (const trozo of trocearTelegram(html)) {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: trozo, parse_mode: 'HTML', disable_web_page_preview: true }),
+    })
+    if (!r.ok) { todoOk = false; console.warn('[digest] Telegram rechazó un trozo:', await r.text().catch(() => '')) }
+  }
+  return todoOk
 }
 async function sendEmail(to: string, subject: string, html: string) {
   const key = process.env.RESEND_API_KEY; if (!key) return false
