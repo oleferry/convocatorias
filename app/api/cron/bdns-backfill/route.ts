@@ -39,7 +39,8 @@ export async function GET(req: NextRequest) {
   try {
     const sb = createAdminSupabase()
     const max = Number(req.nextUrl.searchParams.get('max') || 120)
-    const r = await syncBdns(sb, { desde, hasta, maxDetails: max, backfill: true })
+    const offset = Number(req.nextUrl.searchParams.get('offset') || 0)
+    const r = await syncBdns(sb, { desde, hasta, maxDetails: max, offset, backfill: true })
 
     const { count: abiertas } = await sb.from('convocatorias_publicas')
       .select('codigo_bdns', { count: 'exact', head: true })

@@ -11,11 +11,14 @@ import { esConcesionDirecta } from './matching'
 function ymd(d: Date) { return d.toISOString().slice(0, 10) }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-export interface SyncResult { candidates: number; ingested: number; from: string; to: string }
+export interface SyncResult {
+  candidates: number; ingested: number; from: string; to: string
+  detalles?: number; guardadas?: number; siguienteOffset?: number | null
+}
 
 export async function syncBdns(
   sb: any,
-  opts: { sinceDays?: number; maxDetails?: number; desde?: Date; hasta?: Date; backfill?: boolean } = {},
+  opts: { sinceDays?: number; maxDetails?: number; desde?: Date; hasta?: Date; backfill?: boolean; offset?: number } = {},
 ): Promise<SyncResult> {
   const maxDetails = opts.maxDetails ?? 120
   const today = opts.hasta ?? new Date()
@@ -65,10 +68,14 @@ export async function syncBdns(
     page++
   } while (page < totalPages && page < 20)
 
-  // 2) Detalle + normalización (acotado para no exceder el timeout)
+  // 2) Detalle + normalización (acotado para no exceder el timeout).
+  // El barrido histórico recorre los candidatos por tramos con `offset`: en
+  // orden cronológico ascendente los primeros son los más antiguos (plazo ya
+  // cerrado), así que sin paginar solo se veía la parte inútil de la ventana.
+  const offset = opts.offset ?? 0
   const rows: any[] = []
-  const limit = Math.min(candidates.length, maxDetails)
-  for (let i = 0; i < limit; i++) {
+  const limit = Math.min(candidates.length, offset + maxDetails)
+  for (let i = offset; i < limit; i++) {
     try { rows.push(normalizeDetail(await getConvocatoriaDetail(candidates[i].numeroConvocatoria))) }
     catch { /* salta los que fallen */ }
     await sleep(20)
@@ -113,5 +120,12 @@ export async function syncBdns(
     }).eq('id', 1)
   }
 
-  return { candidates: candidates.length, ingested: rows.length, from: ymd(since), to: ymd(today) }
+  return {
+    candidates: candidates.length,
+    ingested: rows.length,
+    detalles: rows.length,          // detalles pedidos en esta pasada
+    guardadas: useful.length,       // de esos, los que estaban abiertos y valían
+    siguienteOffset: limit < candidates.length ? limit : null,
+    from: ymd(since), to: ymd(today),
+  }
 }
