@@ -155,10 +155,25 @@ const CCAA_MATCHERS: [RegExp, string][] = [
   [/ceuta/, 'Ceuta'],
 ]
 
+// La BDNS llama "ESTADO" al ámbito nacional, no "ESTATAL". Todo el resto del
+// código (matching, sugerencias, digest, /ayudas, bot) compara con 'ESTATAL',
+// así que normalizamos AQUÍ, al ingerir: en nuestra base siempre 'ESTATAL'.
+// Sin esto, ninguna ayuda estatal de la BDNS entraba en el catálogo — que son
+// precisamente las que valen para toda España.
+export function esEstatal(nivel1?: string | null): boolean {
+  const n = (nivel1 || '').toUpperCase().trim()
+  return n === 'ESTATAL' || n === 'ESTADO'
+}
+
+export function normalizeNivel1(nivel1?: string | null): string | null {
+  if (!nivel1) return null
+  return esEstatal(nivel1) ? 'ESTATAL' : nivel1.toUpperCase().trim()
+}
+
 /** Devuelve el nombre estándar de CCAA, o null si es estatal/no identificable. */
 export function normalizeCcaa(nivel1?: string, nivel2?: string): string | null {
   if (!nivel2) return null
-  if ((nivel1 || '').toUpperCase() === 'ESTATAL') return null
+  if (esEstatal(nivel1)) return null
   const norm = nivel2
     .toLowerCase()
     .normalize('NFD')
@@ -178,13 +193,13 @@ function stripHtml(html?: string | null): string | null {
 
 // ── Normalizador detalle → fila de catálogo ────────────────────
 export function normalizeDetail(d: BdnsDetail): ConvocatoriaPublicaRow {
-  const nivel1 = d.organo?.nivel1 || null
+  const nivel1 = normalizeNivel1(d.organo?.nivel1)   // ESTADO → ESTATAL
   const ccaaRaw = d.organo?.nivel2 || null
   let ccaa = normalizeCcaa(nivel1 || undefined, ccaaRaw || undefined)
   let provincia: string | null = null
   // Sub-estatal cuyo nivel2 no es un nombre de CCAA (típico de LOCAL: municipio
   // o "Diputación de X"): resolvemos provincia/CCAA vía el catálogo INE.
-  if (!ccaa && (nivel1 || '').toUpperCase() !== 'ESTATAL') {
+  if (!ccaa && !esEstatal(nivel1)) {
     const geo = resolveLocalGeo(ccaaRaw, d.organo?.nivel3, (d.regiones || []).map(r => r.descripcion))
     if (geo) { ccaa = geo.ccaa; provincia = geo.provincia }
   }

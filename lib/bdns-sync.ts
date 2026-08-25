@@ -3,7 +3,7 @@
 //  Versión acotada para caber en el límite de tiempo de una función
 //  serverless. Pre-filtra por las CCAA de los perfiles de usuario.
 // ================================================================
-import { searchConvocatorias, getConvocatoriaDetail, normalizeDetail, normalizeCcaa } from './bdns'
+import { searchConvocatorias, getConvocatoriaDetail, normalizeDetail, normalizeCcaa, esEstatal } from './bdns'
 import { resolveLocalGeo } from './geo'
 import { generateResumenCatalogo } from './ai'
 import { esConcesionDirecta } from './matching'
@@ -13,15 +13,24 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 export interface SyncResult { candidates: number; ingested: number; from: string; to: string }
 
-export async function syncBdns(sb: any, opts: { sinceDays?: number; maxDetails?: number } = {}): Promise<SyncResult> {
+export async function syncBdns(
+  sb: any,
+  opts: { sinceDays?: number; maxDetails?: number; desde?: Date; hasta?: Date; backfill?: boolean } = {},
+): Promise<SyncResult> {
   const maxDetails = opts.maxDetails ?? 120
-  const today = new Date()
+  const today = opts.hasta ?? new Date()
 
-  // Punto de partida (sync incremental)
+  // Punto de partida. En modo backfill la ventana viene dada (barrido
+  // histórico por tramos) y NO se toca el puntero incremental, para no
+  // romper la ingesta diaria.
   let since: Date
-  const { data: state } = await sb.from('bdns_sync_state').select('last_fecha_recepcion').eq('id', 1).maybeSingle()
-  if (state?.last_fecha_recepcion) since = new Date(state.last_fecha_recepcion)
-  else { since = new Date(); since.setDate(since.getDate() - (opts.sinceDays ?? 7)) }
+  if (opts.desde) {
+    since = opts.desde
+  } else {
+    const { data: state } = await sb.from('bdns_sync_state').select('last_fecha_recepcion').eq('id', 1).maybeSingle()
+    if (state?.last_fecha_recepcion) since = new Date(state.last_fecha_recepcion)
+    else { since = new Date(); since.setDate(since.getDate() - (opts.sinceDays ?? 7)) }
+  }
 
   // CCAA/provincias activas (de los perfiles) → solo pedimos detalle de lo relevante
   const { data: orgs } = await sb.from('organizations').select('ccaa, provincia').eq('is_archived', false)
@@ -38,7 +47,8 @@ export async function syncBdns(sb: any, opts: { sinceDays?: number; maxDetails?:
     for (const it of res.content || []) {
       if (!hasFilter) { candidates.push(it); continue }
       const n1 = (it.nivel1 || '').toUpperCase()
-      if (n1 === 'ESTATAL') { candidates.push(it); continue }
+      // Ojo: la BDNS dice "ESTADO", no "ESTATAL" (ver esEstatal en bdns.ts).
+      if (esEstatal(n1)) { candidates.push(it); continue }
       if (n1 === 'LOCAL') {
         // nivel2 aquí es el municipio o "Diputación de X" (no una CCAA): hay que
         // resolver su provincia/CCAA vía el catálogo INE antes de decidir.
@@ -93,11 +103,15 @@ export async function syncBdns(sb: any, opts: { sinceDays?: number; maxDetails?:
 
   // 4) Avanzar el puntero. Si nos quedamos cortos (cap), continuamos donde
   //    lo dejamos la próxima vez; si no, hasta hoy.
-  const capped = limit < candidates.length && rows.length > 0
-  const last = capped ? (rows[rows.length - 1].fecha_recepcion || ymd(today)) : ymd(today)
-  await sb.from('bdns_sync_state').update({
-    last_fecha_recepcion: last, last_run_at: new Date().toISOString(), last_count: rows.length,
-  }).eq('id', 1)
+  // En backfill NO se toca: su ventana la marca quien lo llama, y mover el
+  // puntero hacia atrás haría que la ingesta diaria reprocesara meses.
+  if (!opts.backfill) {
+    const capped = limit < candidates.length && rows.length > 0
+    const last = capped ? (rows[rows.length - 1].fecha_recepcion || ymd(today)) : ymd(today)
+    await sb.from('bdns_sync_state').update({
+      last_fecha_recepcion: last, last_run_at: new Date().toISOString(), last_count: rows.length,
+    }).eq('id', 1)
+  }
 
   return { candidates: candidates.length, ingested: rows.length, from: ymd(since), to: ymd(today) }
 }
