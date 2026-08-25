@@ -104,13 +104,19 @@ async function sendEmail(to: string, subject: string, html: string) {
   return r.ok
 }
 
-async function pickForUser(sb: any, user: any, today: string, max = 8) {
+async function pickForUser(sb: any, user: any, today: string, max = 8, incluirEnviadas = false) {
   const { data: orgs } = await sb.from('organizations').select('*').eq('user_id', user.id).eq('is_archived', false)
   if (!orgs || !orgs.length) return []
+  // El digest semanal salta lo ya enviado (para no repetirse). Una puesta al
+  // día puede querer justo lo contrario: el panorama completo de lo que hoy
+  // está abierto y encaja, se haya mencionado antes o no.
   const [{ data: saved }, { data: sent }] = await Promise.all([
     sb.from('grants').select('codigo_bdns').eq('user_id', user.id).not('codigo_bdns', 'is', null),
-    sb.from('digest_sent').select('codigo_bdns').eq('user_id', user.id),
+    incluirEnviadas
+      ? Promise.resolve({ data: [] })
+      : sb.from('digest_sent').select('codigo_bdns').eq('user_id', user.id),
   ])
+  // Las que ya tiene guardadas se saltan siempre: ya las conoce.
   const skip = new Set([...(saved || []), ...(sent || [])].map((r: any) => r.codigo_bdns))
   const byCode = new Map<string, any>()
   for (const org of orgs as Organization[]) {
@@ -165,6 +171,8 @@ export async function GET(req: NextRequest) {
   const max = Math.min(Number(req.nextUrl.searchParams.get('max') || 8), 30)
   const dry = req.nextUrl.searchParams.get('dry') === '1'
   const solo = (req.nextUrl.searchParams.get('solo') || '').toLowerCase().trim()
+  // ?incluirEnviadas=1 → panorama completo, aunque ya se mencionaran antes.
+  const incluirEnviadas = req.nextUrl.searchParams.get('incluirEnviadas') === '1'
 
   const { data: users } = await sb.from('users').select('id, email, full_name, telegram_id').limit(200)
   const confirmados = await emailsConfirmados(sb)
@@ -174,7 +182,7 @@ export async function GET(req: NextRequest) {
   for (const user of (users || [])) {
     if (solo && (user.email || '').toLowerCase() !== solo) continue
     const emailOk = confirmados.has(user.id)
-    const items = await pickForUser(sb, user, today, max)
+    const items = await pickForUser(sb, user, today, max, incluirEnviadas)
     if (!items.length) continue
 
     if (dry) {
