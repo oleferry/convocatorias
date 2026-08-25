@@ -104,7 +104,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   return r.ok
 }
 
-async function pickForUser(sb: any, user: any, today: string) {
+async function pickForUser(sb: any, user: any, today: string, max = 8) {
   const { data: orgs } = await sb.from('organizations').select('*').eq('user_id', user.id).eq('is_archived', false)
   if (!orgs || !orgs.length) return []
   const [{ data: saved }, { data: sent }] = await Promise.all([
@@ -127,7 +127,23 @@ async function pickForUser(sb: any, user: any, today: string) {
       if (!prev || m.score > prev.score) byCode.set(c.codigo_bdns, { c, score: m.score, reason: m.reasons.join(' · ') })
     }
   }
-  return [...byCode.values()].sort((a, b) => b.score - a.score || (a.c.fecha_fin || '').localeCompare(b.c.fecha_fin || '')).slice(0, 8)
+  return [...byCode.values()].sort((a, b) => b.score - a.score || (a.c.fecha_fin || '').localeCompare(b.c.fecha_fin || '')).slice(0, max)
+}
+
+// Emails verificados. Nunca mandamos a direcciones sin confirmar: no las ha
+// validado nadie (pueden ser erróneas o de otra persona) y perjudican la
+// reputación del dominio, que es lo que mantiene el digest fuera de spam.
+// El dato vive en auth.users, no en public.users, de ahí el cliente admin.
+async function emailsConfirmados(sb: any): Promise<Set<string>> {
+  const ok = new Set<string>()
+  try {
+    const { data, error } = await sb.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    if (error) throw new Error(error.message)
+    for (const u of (data?.users || [])) if (u.email_confirmed_at && u.id) ok.add(u.id)
+  } catch (e: any) {
+    console.warn('[digest] no pude leer confirmaciones:', e?.message)
+  }
+  return ok
 }
 
 export async function GET(req: NextRequest) {
@@ -141,21 +157,47 @@ export async function GET(req: NextRequest) {
 
   const sb = createAdminSupabase()
   const today = new Date().toISOString().slice(0, 10)
+
+  // ?max=N    → cuántas convocatorias por usuario (8 el digest semanal; más en
+  //             una puesta al día tras ampliar el catálogo).
+  // ?dry=1    → no envía nada, solo dice qué se enviaría. Para revisar antes.
+  // ?solo=<email> → limita el envío a esa dirección (prueba real).
+  const max = Math.min(Number(req.nextUrl.searchParams.get('max') || 8), 30)
+  const dry = req.nextUrl.searchParams.get('dry') === '1'
+  const solo = (req.nextUrl.searchParams.get('solo') || '').toLowerCase().trim()
+
   const { data: users } = await sb.from('users').select('id, email, full_name, telegram_id').limit(200)
+  const confirmados = await emailsConfirmados(sb)
+
   let sent = 0
+  const detalle: any[] = []
   for (const user of (users || [])) {
-    const items = await pickForUser(sb, user, today)
+    if (solo && (user.email || '').toLowerCase() !== solo) continue
+    const emailOk = confirmados.has(user.id)
+    const items = await pickForUser(sb, user, today, max)
     if (!items.length) continue
+
+    if (dry) {
+      detalle.push({
+        email: user.email, email_confirmado: emailOk, telegram: !!user.telegram_id,
+        convocatorias: items.length,
+        muestra: items.slice(0, 3).map((it: any) => it.c.titulo?.slice(0, 70)),
+      })
+      continue
+    }
+
     const tg = composeTelegram(user, items)
     const { subject, html } = composeEmail(user, items)
     const okTg = user.telegram_id ? await sendTelegram(user.telegram_id, tg) : false
-    const okMail = user.email ? await sendEmail(user.email, subject, html) : false
+    // Solo a direcciones verificadas (ver emailsConfirmados).
+    const okMail = (user.email && emailOk) ? await sendEmail(user.email, subject, html) : false
     const channel = okTg && okMail ? 'both' : okTg ? 'telegram' : okMail ? 'email' : null
     if (channel) {
       await sb.from('digest_sent').upsert(items.map((it: any) => ({ user_id: user.id, codigo_bdns: it.c.codigo_bdns, channel })), { onConflict: 'user_id,codigo_bdns', ignoreDuplicates: true })
       await sb.from('search_runs').insert({ user_id: user.id, results_count: items.length, trigger: 'cron_weekly' })
       sent++
+      detalle.push({ email: user.email, canal: channel, convocatorias: items.length })
     }
   }
-  return NextResponse.json({ ok: true, usuarios_con_envio: sent })
+  return NextResponse.json({ ok: true, dry, max, usuarios_con_envio: sent, detalle })
 }
