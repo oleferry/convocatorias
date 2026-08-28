@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
+import { APP_URL } from '@/lib/site'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dameperrasperro.es'
 
 export default function robots(): MetadataRoute.Robots {
   return {

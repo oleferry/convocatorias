@@ -11,6 +11,7 @@ export const revalidate = 3600
 export const metadata: Metadata = {
   title: 'Ayudas y subvenciones abiertas por comunidad autónoma',
   description: 'Convocatorias de ayudas, subvenciones y fondos europeos abiertas ahora mismo, organizadas por comunidad autónoma. Datos de la BDNS actualizados a diario.',
+  alternates: { canonical: '/ayudas' },
 }
 
 export default async function AyudasIndexPage() {

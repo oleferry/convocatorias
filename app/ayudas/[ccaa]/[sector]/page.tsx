@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: { params: { ccaa: string; sec
   return {
     title: `Ayudas para ${sector.label} en ${name}`,
     description: `Convocatorias abiertas para empresas de ${sector.label} en ${name}: importe, plazo y quién puede solicitarlas. Actualizado a diario desde la BDNS.`,
+    alternates: { canonical: `/ayudas/${params.ccaa}/${params.sector}` },
   }
 }
 

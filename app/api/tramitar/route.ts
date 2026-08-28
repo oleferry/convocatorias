@@ -3,13 +3,13 @@ import { createAdminSupabase } from '@/lib/supabase-server'
 import { adminEmails } from '@/lib/admin'
 import { documentacionHabitual, DOC_AVISO, verifyTramitar } from '@/lib/tramitacion'
 import { tituloCorto } from '@/lib/matching'
+import { APP_URL } from '@/lib/site'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 const FROM = process.env.DIGEST_FROM || 'DamePerrasPerro <onboarding@resend.dev>'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dameperrasperro.es'
 
 function esc(s: any) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
 

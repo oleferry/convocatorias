@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabase } from '@/lib/supabase-server'
+import { APP_URL } from '@/lib/site'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -12,7 +13,6 @@ export const fetchCache = 'force-no-store'
 // sin CNAE, actividad ni provincia no hay con qué cruzar las convocatorias.
 // Este aviso les pide el paso que falta. Se manda UNA vez por usuario
 // (queda registrado en users.perfil_recordatorio_at) salvo ?forzar=1.
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dameperrasperro.es'
 const FROM = process.env.DIGEST_FROM || 'DamePerrasPerro <onboarding@resend.dev>'
 
 function esc(s: any) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
