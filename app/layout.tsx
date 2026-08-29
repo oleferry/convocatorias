@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/react'
+import { APP_URL } from '@/lib/site'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dameperrasperro.es'
 const TITLE = 'DamePerrasPerro — El perro que encuentra las perras'
 const DESCRIPTION = 'La IA que rastrea ayudas, subvenciones y convocatorias antes de que se te escapen.'
 

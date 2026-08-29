@@ -3,6 +3,7 @@ import { createAdminSupabase } from '@/lib/supabase-server'
 import { matchGrant, formatEuro, tituloCorto, type PublicGrantRow } from '@/lib/matching'
 import { tramitarUrl } from '@/lib/tramitacion'
 import type { Organization } from '@/lib/types'
+import { APP_URL } from '@/lib/site'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -11,7 +12,6 @@ export const fetchCache = 'force-no-store'
 
 // GET /api/cron/digest → digest semanal por usuario (Telegram + email Resend).
 // Sin Railway. Protegido por CRON_SECRET. Envío gracioso: salta el canal sin clave.
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dameperrasperro.es'
 const FROM = process.env.DIGEST_FROM || 'DamePerrasPerro <onboarding@resend.dev>'
 
 function esc(s: any) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }

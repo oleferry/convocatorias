@@ -24,6 +24,7 @@ export async function generateMetadata({ params }: { params: { ccaa: string } })
   return {
     title: `Ayudas y subvenciones abiertas en ${name}`,
     description: `Convocatorias estatales y de ${name} abiertas ahora mismo: importe, plazo y quién puede solicitarlas. Actualizado a diario desde la BDNS.`,
+    alternates: { canonical: `/ayudas/${params.ccaa}` },
   }
 }
 
