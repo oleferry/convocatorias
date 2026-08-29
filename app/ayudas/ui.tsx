@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { T, FONT, FONT_DISPLAY, daysLeft, urgency } from '@/lib/theme'
+import { APP_URL } from '@/lib/site'
 import type { PublicGrantCard } from '@/lib/public-grants'
 
 export function PageShell({ children }: { children: React.ReactNode }) {
@@ -22,16 +23,49 @@ export function PageShell({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Migas de pan, con su marcado `BreadcrumbList` incluido.
+//
+// El JSON-LD sale de la MISMA lista que se pinta, y es la razón de que viva
+// aquí y no en cada página: Google exige que los datos estructurados
+// correspondan a lo que el usuario ve, y dos listas mantenidas por separado se
+// desincronizan a la primera de cambio. Así no pueden.
+//
+// De todos los marcados posibles para este sitio, este es el que da resultado
+// visible: Google pinta las migas en el resultado de búsqueda, en lugar de la
+// URL. Un `MonetaryGrant` por convocatoria sería más vistoso de escribir y no
+// se vería en ningún sitio.
 export function Breadcrumb({ items }: { items: { label: string; href?: string }[] }) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.label,
+      // El último escalón es la página actual y va sin `item`: es donde estás,
+      // no un sitio al que ir.
+      ...(it.href ? { item: `${APP_URL}${it.href}` } : {}),
+    })),
+  }
+
   return (
-    <div style={{ fontSize: 12.5, color: T.inkMuted, marginBottom: 18, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {items.map((it, i) => (
-        <span key={i} style={{ display: 'flex', gap: 6 }}>
-          {i > 0 && <span>/</span>}
-          {it.href ? <Link href={it.href} style={{ color: T.inkLight, textDecoration: 'none' }}>{it.label}</Link> : <span>{it.label}</span>}
-        </span>
-      ))}
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        // `<` escapado: una etiqueta de cierre dentro del JSON cerraría el
+        // script antes de tiempo. Hoy las etiquetas vienen de constantes
+        // nuestras, pero eso es una suposición sobre el futuro, no una defensa.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
+      />
+      <div style={{ fontSize: 12.5, color: T.inkMuted, marginBottom: 18, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {items.map((it, i) => (
+          <span key={i} style={{ display: 'flex', gap: 6 }}>
+            {i > 0 && <span>/</span>}
+            {it.href ? <Link href={it.href} style={{ color: T.inkLight, textDecoration: 'none' }}>{it.label}</Link> : <span>{it.label}</span>}
+          </span>
+        ))}
+      </div>
+    </>
   )
 }
 
