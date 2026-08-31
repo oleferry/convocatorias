@@ -7,6 +7,7 @@ import { STATUS_META, TYPE_META } from '@/lib/types'
 import { T, FONT, FONT_DISPLAY, daysLeft, urgency } from '@/lib/theme'
 import { publicToGrant, formatEuro, tituloCorto } from '@/lib/matching'
 import { isAdminEmail } from '@/lib/admin'
+import { track } from '@/lib/eventos'
 
 // Paleta de formularios derivada de los tokens de diseño (compatibilidad con el
 // código heredado de GrantForm / DiscoveryPanel).
@@ -254,6 +255,7 @@ function LeadModal({ item, user, onClose }: { item: any; user: any; onClose: () 
         }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Error')
+      track('tramitar_enviado', { fuente: item.fuente || 'desconocida' })
       setDone(true)
     } catch (e: any) { setErr(e.message || 'Error') } finally { setSending(false) }
   }
@@ -1377,7 +1379,7 @@ export default function Dashboard() {
                     : !search && filter === 'all' && <button onClick={() => setModal('add')} style={{ padding: '10px 24px', background: T.gold, color: T.inkOnAccent, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>+ Añadir convocatoria</button>}
                 </div>
               ) : visible.map(g => (
-                <GrantCard key={g.id} grant={g} org={getOrg(g.org_id)} onClick={() => setSelected(g)} compact={view === 'list'} />
+                <GrantCard key={g.id} grant={g} org={getOrg(g.org_id)} onClick={() => { track('ficha_abierta', { origen: 'guardadas', estado: g.status }); setSelected(g) }} compact={view === 'list'} />
               ))}
             </div>
           </>
@@ -1405,7 +1407,7 @@ export default function Dashboard() {
                     <div style={{ fontSize: 14, fontWeight: 800, color: T.ink }}>🎯 Para tu sector ({suggestions.length})</div>
                     <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>Afines a tu CNAE/IAE o a tu actividad.</div>
                   </div>
-                  <div style={grid}>{suggestions.map(c => <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} onLead={() => setLeadFor({ ...c, grant_titulo: c.titulo })} />)}</div>
+                  <div style={grid}>{suggestions.map(c => <SuggestionCard key={c.codigo_bdns} c={c} saved={savedSug.has(c.codigo_bdns)} onSave={() => handleSaveSuggestion(c)} onLead={() => { track('tramitar_abierto', { fuente: c.fuente || 'bdns' }); setLeadFor({ ...c, grant_titulo: c.titulo }) }} />)}</div>
                 </div>
               )
             })()}
