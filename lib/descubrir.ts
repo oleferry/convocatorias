@@ -85,6 +85,10 @@ export async function syncDescubrimiento(sb: any, opts: { max?: number; reset?: 
         beneficiarios: Array.isArray(it.beneficiarios) ? it.beneficiarios.map(String) : [],
         sectores: [],
         regiones: [],
+        // Para quién se buscó esto. El matching exige parentesco de sector con
+        // el perfil que disparó la búsqueda, para que unos premios de
+        // arquitectura no acaben en una óptica por una palabra suelta.
+        cnaes_objetivo: [...(o.cnaes || []), o.cnae].filter(Boolean).map(String),
         bases_url: it.url,
         abierto: true, fecha_inicio: null, fecha_fin: null, fecha_recepcion: null, presupuesto_total: null,
         fuente: 'privada',

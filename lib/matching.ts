@@ -33,6 +33,7 @@ export interface PublicGrantRow {
   fuente?: string | null
   resumen_periodista?: string | null
   importe_beneficiario?: string | null
+  cnaes_objetivo?: string[] | null
 }
 
 // tier: 'sector' = afín a tu CNAE/IAE/actividad. Provincia y tipo de entidad
@@ -51,10 +52,31 @@ export function tokens(s?: string | null): string[] {
 }
 
 // Palabras demasiado genéricas para servir de keyword discriminante.
+// El campo "actividad" del perfil lo escribe el usuario en prosa, muchas veces
+// como texto comercial ("ofrecemos un entorno seguro donde cada pequeño puede
+// crecer..."), y de ahí salen decenas de palabras que casan con cualquier
+// convocatoria. Sin esta criba, una escuela infantil encajaba con un festival
+// de arquitectura por "equipo", "juego" y "creatividad".
 export const STOP_TOKENS = new Set([
+  // Vocabulario administrativo de convocatorias
   'comercio', 'menor', 'mayor', 'establecimientos', 'especializados', 'productos',
   'otros', 'otras', 'actividad', 'actividades', 'servicios', 'empresa', 'empresas',
-  'general', 'varios', 'diversos',
+  'general', 'varios', 'diversos', 'proyecto', 'proyectos', 'programa', 'programas',
+  'ayuda', 'ayudas', 'subvencion', 'subvenciones', 'convocatoria', 'concesion',
+  'entidad', 'entidades', 'beneficiarios', 'solicitud', 'solicitudes', 'gastos',
+  'importe', 'plazo', 'anual', 'anuales', 'nacional', 'regional', 'local',
+  // Prosa comercial y relleno
+  'nuestro', 'nuestra', 'nuestros', 'nuestras', 'ofrecemos', 'trabajamos', 'donde',
+  'cada', 'todos', 'todas', 'puede', 'pueden', 'desde', 'hasta', 'entre', 'sobre',
+  'para', 'como', 'este', 'esta', 'estos', 'estas', 'through', 'traves',
+  'calidad', 'excelencia', 'innovacion', 'desarrollo', 'mejora', 'apoyo', 'fomento',
+  'impulso', 'promocion', 'gestion', 'trabajo', 'equipo', 'equipos', 'personas',
+  'profesional', 'profesionales', 'sector', 'sectores', 'ambito', 'nivel',
+  'oportunidad', 'oportunidades', 'experiencia', 'compromiso', 'dedicacion',
+  'entorno', 'seguro', 'juego', 'creatividad', 'bienestar', 'familias', 'ritmo',
+  'crecer', 'aprender', 'descubrir', 'compartir', 'disfrutar', 'acompanamiento',
+  'autonomia', 'estimulos', 'pequeno', 'propio', 'lleno', 'acogedor', 'dirigido',
+  'realizacion', 'participacion', 'formacion', 'campos', 'edicion', 'estudios',
 ])
 
 // CNAE: división (2 dígitos) → letra de sección. La BDNS etiqueta los sectores
@@ -161,6 +183,62 @@ export function esConcesionDirecta(tipoConvocatoria?: string | null): boolean {
   return strip(tipoConvocatoria || '').includes('concesion directa')
 }
 
+// ── CAPA 1: ubicación declarada en texto libre ──────────────────
+// El radar (privados/europeos) no trae provincia en un campo: la restricción
+// vive en la letra pequeña ("Sede social en León", "con obras en Castilla y
+// León"). Si el texto nombra un sitio concreto y no es el tuyo, fuera.
+const PROVINCIAS_ES = [
+  'alava','albacete','alicante','almeria','asturias','avila','badajoz','baleares','barcelona','burgos',
+  'caceres','cadiz','cantabria','castellon','ceuta','ciudad real','cordoba','cuenca','girona','granada',
+  'guadalajara','guipuzcoa','huelva','huesca','jaen','la rioja','las palmas','leon','lleida','lugo',
+  'madrid','malaga','melilla','murcia','navarra','ourense','palencia','pontevedra','salamanca','segovia',
+  'sevilla','soria','tarragona','tenerife','teruel','toledo','valencia','valladolid','vizcaya','zamora','zaragoza',
+]
+const CCAA_ES = [
+  'andalucia','aragon','asturias','baleares','canarias','cantabria','castilla-la mancha','castilla la mancha',
+  'castilla y leon','cataluna','cataluña','extremadura','galicia','la rioja','madrid','murcia','navarra',
+  'pais vasco','euskadi','valencia','comunidad valenciana','ceuta','melilla',
+]
+
+/**
+ * Lugares concretos que menciona el texto de la convocatoria, excluidos los
+ * que coinciden con los del perfil. Si devuelve algo, la convocatoria está
+ * acotada a otro sitio.
+ */
+function lugaresAjenos(texto: string, org: Organization): string[] {
+  const hay = strip(texto)
+  const propios = new Set([strip(org.ccaa || ''), strip(org.provincia || ''), strip(org.municipio || '')].filter(Boolean))
+  const fuera: string[] = []
+  for (const lugar of [...PROVINCIAS_ES, ...CCAA_ES]) {
+    if (propios.has(lugar)) continue
+    // Delimitado por palabra para no casar "leon" dentro de "castilla y leon".
+    if (new RegExp(`(^|[^a-z])${lugar}([^a-z]|$)`).test(hay)) {
+      // "León" dentro de "Castilla y León" no es una restricción a la provincia.
+      if (lugar === 'leon' && /castilla y leon/.test(hay)) continue
+      if (propios.has(lugar)) continue
+      fuera.push(lugar)
+    }
+  }
+  return fuera
+}
+
+// ── CAPA 3: parentesco de sector para el radar descubierto con IA ──
+// Los programas privados se descubren PARA un perfil concreto; guardamos su
+// CNAE en cnaes_objetivo. Exigimos parentesco a nivel de grupo (3 dígitos):
+// 1071 y 1072 (pan y pastelería) sí; 7111 (arquitectura) y 4773 (óptica) no.
+function compartenSector(cnaesObjetivo: string[], org: Organization): boolean {
+  const grupos = new Set<string>()
+  const add = (v: any) => { const d = String(v || '').replace(/\D/g, '').slice(0, 3); if (d.length >= 2) grupos.add(d) }
+  for (const c of (org.cnaes || [])) add(c)
+  if (org.cnae) add(org.cnae)
+  if (!grupos.size) return false
+  for (const objetivo of cnaesObjetivo) {
+    const d = String(objetivo || '').replace(/\D/g, '').slice(0, 3)
+    if (d.length >= 2 && grupos.has(d)) return true
+  }
+  return false
+}
+
 /** Evalúa si una convocatoria pública encaja con un perfil. */
 export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: string): MatchResult {
   const reasons: string[] = []
@@ -173,6 +251,21 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   const isRadar = !!c.fuente && c.fuente !== 'bdns'
   const open = isRadar || (!!c.fecha_fin && c.fecha_fin >= todayISO)
   if (!open) return { match: false, score: 0, reasons: [], tier: null }
+
+  // ── CAPA 1 (radar): ubicación escrita en la letra pequeña ──
+  // El radar no trae provincia estructurada, así que la leemos del texto.
+  // "Premio Pyme del Año – Cámara de León" no es para una empresa de Valladolid.
+  if (isRadar) {
+    const ajenos = lugaresAjenos([c.titulo, c.finalidad, ...(c.beneficiarios || [])].join(' '), org)
+    if (ajenos.length) return { match: false, score: 0, reasons: [], tier: null }
+  }
+
+  // ── CAPA 3 (radar descubierto con IA): parentesco real de sector ──
+  // Estos programas se buscaron PARA un sector concreto. Si no es el tuyo,
+  // fuera — por muchas palabras que casen por casualidad.
+  if (c.cnaes_objetivo && c.cnaes_objetivo.length && !compartenSector(c.cnaes_objetivo, org)) {
+    return { match: false, score: 0, reasons: [], tier: null }
+  }
 
   const estatal = (c.nivel1 || '').toUpperCase() === 'ESTATAL'
   let score = 10 // base por superar región + abierta
@@ -273,7 +366,10 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
       ...(focused ? (c.sectores || []).map(s => s.descripcion) : []),
       ...(c.beneficiarios || []),
     ].join(' '))
-    for (const t of profileTokens) if (hay.includes(t)) kwHits++
+    // Palabra completa, no subcadena: evita casar "pan" dentro de "compañía".
+    for (const t of profileTokens) {
+      if (new RegExp(`(^|[^a-z0-9])${t}([^a-z0-9]|$)`).test(hay)) kwHits++
+    }
     if (kwHits > 0) { score += Math.min(30, kwHits * 12); reasons.push(`${kwHits} palabra(s) clave`) }
   }
 
@@ -282,7 +378,15 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
   // coincidencia real de sector (CNAE/IAE) o palabra clave de tu actividad, no
   // se sugiere. "Encaja con tu tipo de entidad" solo suma puntos si ya hay
   // señal de sector — no basta para hacer match por sí sola.
-  const tier: MatchTier | null = (sectorMatch || kwHits > 0) ? 'sector' : null
+  //
+  // Y una SOLA palabra suelta tampoco basta cuando no hay sector estructurado
+  // que la respalde: el castellano está lleno de homónimos y así es como unos
+  // premios de arquitectura ("5ª edición") acabaron en un periódico digital
+  // ("edición de periódicos"), o cómo "y otros campos" casó con "Tierra de
+  // Campos". Con sector confirmado, una palabra sí suma; sin él, hacen falta
+  // dos coincidencias independientes.
+  const señalSuficiente = sectorMatch || kwHits >= 2
+  const tier: MatchTier | null = señalSuficiente ? 'sector' : null
   return { match: tier !== null, score: Math.min(100, score), reasons, tier }
 }
 
