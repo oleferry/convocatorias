@@ -119,6 +119,10 @@ function beneficiarioEncaja(benefArr, tipo) {
     }
     if (tipo === 'cooperativa') {
       if (s.includes('cooperativa') || s.includes('economia social')) return true
+      // Una cooperativa es también pyme/persona jurídica con actividad
+      // económica, que es como la BDNS suele etiquetarlas.
+      if (s.includes('pyme') || s.includes('microempresa')) return true
+      if (s.includes('desarrollan actividad econ') && !noEcon && !soloFisica) return true
     }
   }
   return false
@@ -171,6 +175,45 @@ function compartenSector(cnaesObjetivo, org) {
   return false
 }
 
+// ── CAPA 2b: forma jurídica exigida, leída del título ────────────
+// El campo `beneficiarios` de la BDNS es demasiado grueso para esto: una ayuda
+// exclusiva para cooperativas viene etiquetada como "PYME Y PERSONAS FÍSICAS
+// QUE DESARROLLAN ACTIVIDAD ECONÓMICA" — cierto (una cooperativa es una pyme)
+// pero inútil, porque una S.L. normal no puede pedirla. La restricción real
+// está en el título: "cooperativas y sociedades laborales", "empresas de
+// inserción", "centros especiales de empleo". Son formas jurídicas concretas,
+// no tamaños de empresa.
+function formaJuridicaExigida(texto) {
+  const s = strip(texto)
+  if (/cooperativ|sociedad(es)? laboral|economia social/.test(s)) return 'cooperativa'
+  if (/empresas? de insercion|centros? especial(es)? de empleo/.test(s)) return 'insercion'
+  if (/sin animo de lucro|entidades no lucrativas/.test(s)) return 'nolucrativa'
+  return null
+}
+
+/** ¿El texto nombra explícitamente la forma jurídica de este perfil? */
+function mencionaMiForma(texto, tipo) {
+  const s = strip(texto)
+  if (tipo === 'pyme' || tipo === 'gran_empresa') return /\bpyme|pequenas y medianas empresas|microempresa/.test(s)
+  if (tipo === 'autonomo') return /aut[oó]nom|cuenta propia|persona fisica/.test(s)
+  if (tipo === 'cooperativa') return /cooperativ|sociedad(es)? laboral|economia social/.test(s)
+  if (tipo === 'asociacion' || tipo === 'fundacion') return /asociaci|fundaci|sin animo de lucro/.test(s)
+  return false
+}
+
+// Solo bloquea si el título exige una forma jurídica Y no menciona además la
+// del perfil (para no descartar "ayudas a pymes y cooperativas" a una S.L.).
+function formaIncompatible(c, org) {
+  const texto = [c.titulo, c.finalidad].filter(Boolean).join(' ')
+  const exigida = formaJuridicaExigida(texto)
+  if (!exigida) return false
+  if (mencionaMiForma(texto, org.tipo_entidad)) return false
+  const t = org.tipo_entidad
+  if (exigida === 'cooperativa') return t !== 'cooperativa'
+  if (exigida === 'nolucrativa') return t !== 'asociacion' && t !== 'fundacion'
+  return t === 'pyme' || t === 'autonomo' || t === 'gran_empresa'
+}
+
 function matchGrant(c, org, todayISO) {
   const reasons = []
   if (esConcesionDirecta(c.tipo_convocatoria)) return { match: false, score: 0, reasons: [], tier: null }
@@ -183,6 +226,9 @@ function matchGrant(c, org, todayISO) {
     const ajenos = lugaresAjenos([c.titulo, c.finalidad, ...(c.beneficiarios || [])].join(' '), org)
     if (ajenos.length) return { match: false, score: 0, reasons: [], tier: null }
   }
+
+  // CAPA 2b: forma jurídica reservada (cooperativa, empresa de inserción…).
+  if (formaIncompatible(c, org)) return { match: false, score: 0, reasons: [], tier: null }
 
   // CAPA 3: parentesco de sector con el perfil que disparó el descubrimiento.
   if (c.cnaes_objetivo && c.cnaes_objetivo.length && !compartenSector(c.cnaes_objetivo, org)) {

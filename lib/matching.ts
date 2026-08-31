@@ -168,6 +168,12 @@ function beneficiarioEncaja(benefArr: string[] | null | undefined, tipo: string)
     }
     if (tipo === 'cooperativa') {
       if (s.includes('cooperativa') || s.includes('economia social')) return true
+      // Una cooperativa es también una pyme y una persona jurídica con
+      // actividad económica: la BDNS casi siempre las etiqueta así, no como
+      // "cooperativa". Sin esto, una cooperativa no recibía ni las ayudas
+      // destinadas expresamente a cooperativas.
+      if (s.includes('pyme') || s.includes('microempresa')) return true
+      if (s.includes('desarrollan actividad econ') && !noEcon && !soloFisica) return true
     }
   }
   return false
@@ -181,6 +187,53 @@ function beneficiarioEncaja(benefArr: string[] | null | undefined, tipo: string)
 // típica del radar/privados) sí son abiertas.
 export function esConcesionDirecta(tipoConvocatoria?: string | null): boolean {
   return strip(tipoConvocatoria || '').includes('concesion directa')
+}
+
+// ── CAPA 2b: forma jurídica exigida, leída del título ────────────
+// El campo `beneficiarios` de la BDNS es demasiado grueso para esto: una ayuda
+// exclusiva para cooperativas viene etiquetada como "PYME Y PERSONAS FÍSICAS
+// QUE DESARROLLAN ACTIVIDAD ECONÓMICA" — cierto (una cooperativa es una pyme)
+// pero inútil, porque una S.L. normal no puede pedirla. La restricción real
+// está en el título: "cooperativas y sociedades laborales", "empresas de
+// inserción", "centros especiales de empleo". Son formas jurídicas concretas,
+// no tamaños de empresa.
+type FormaExigida = 'cooperativa' | 'insercion' | 'nolucrativa' | null
+
+function formaJuridicaExigida(texto: string): FormaExigida {
+  const s = strip(texto)
+  if (/cooperativ|sociedad(es)? laboral|economia social/.test(s)) return 'cooperativa'
+  if (/empresas? de insercion|centros? especial(es)? de empleo/.test(s)) return 'insercion'
+  if (/sin animo de lucro|entidades no lucrativas/.test(s)) return 'nolucrativa'
+  return null
+}
+
+/** ¿El texto nombra explícitamente la forma jurídica de este perfil? */
+function mencionaMiForma(texto: string, tipo: string): boolean {
+  const s = strip(texto)
+  if (tipo === 'pyme' || tipo === 'gran_empresa') return /\bpyme|pequenas y medianas empresas|microempresa/.test(s)
+  if (tipo === 'autonomo') return /aut[oó]nom|cuenta propia|persona fisica/.test(s)
+  if (tipo === 'cooperativa') return /cooperativ|sociedad(es)? laboral|economia social/.test(s)
+  if (tipo === 'asociacion' || tipo === 'fundacion') return /asociaci|fundaci|sin animo de lucro/.test(s)
+  return false
+}
+
+/**
+ * ¿La convocatoria está reservada a una forma jurídica que no es la tuya?
+ * Solo bloquea si el título la exige Y no menciona además la forma del perfil
+ * (para no descartar "ayudas a pymes y cooperativas" a una S.L.).
+ */
+function formaIncompatible(c: PublicGrantRow, org: Organization): boolean {
+  const texto = [c.titulo, c.finalidad].filter(Boolean).join(' ')
+  const exigida = formaJuridicaExigida(texto)
+  if (!exigida) return false
+  if (mencionaMiForma(texto, org.tipo_entidad)) return false
+  const t = org.tipo_entidad
+  if (exigida === 'cooperativa') return t !== 'cooperativa'
+  if (exigida === 'nolucrativa') return t !== 'asociacion' && t !== 'fundacion'
+  // Empresas de inserción y centros especiales de empleo: entidades con
+  // calificación administrativa propia. Una pyme, un autónomo o una gran
+  // empresa corrientes no pueden pedirlas.
+  return t === 'pyme' || t === 'autonomo' || t === 'gran_empresa'
 }
 
 // ── CAPA 1: ubicación declarada en texto libre ──────────────────
@@ -259,6 +312,9 @@ export function matchGrant(c: PublicGrantRow, org: Organization, todayISO: strin
     const ajenos = lugaresAjenos([c.titulo, c.finalidad, ...(c.beneficiarios || [])].join(' '), org)
     if (ajenos.length) return { match: false, score: 0, reasons: [], tier: null }
   }
+
+  // ── CAPA 2b: forma jurídica reservada (cooperativa, empresa de inserción…) ──
+  if (formaIncompatible(c, org)) return { match: false, score: 0, reasons: [], tier: null }
 
   // ── CAPA 3 (radar descubierto con IA): parentesco real de sector ──
   // Estos programas se buscaron PARA un sector concreto. Si no es el tuyo,
