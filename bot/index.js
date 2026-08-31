@@ -516,10 +516,12 @@ Ya registradas (no duplicar): ${(existingTitles || []).slice(0, 20).join(', ') |
 
 Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`
 
+  // max_uses + filtrado dinámico: sin tope, una búsqueda metía ~153.000 tokens
+  // de entrada (~0,49 €). Espejo de lib/ai.ts.
   const r = await ai.messages.create({
     model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys,
     messages: [{ role: 'user', content: user }],
-    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+    tools: [{ type: 'web_search_20260318', name: 'web_search', max_uses: 4 }],
   })
   logApiUsage('search_web', 'claude-sonnet-4-6', r.usage, org.user_id, org.id).catch(() => {})
   const text = r.content.map(b => (b.type === 'text' ? b.text : '')).join('\n')
@@ -534,7 +536,8 @@ async function analyzeGrant(input, userId) {
   const r = await ai.messages.create({
     model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys,
     messages: [{ role: 'user', content: `Analiza esto y extrae la convocatoria:\n${input}` }],
-    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+    // El usuario ya da el enlace: 2 búsquedas sobran para confirmar datos.
+    tools: [{ type: 'web_search_20260318', name: 'web_search', max_uses: 2 }],
   })
   logApiUsage('analyze', 'claude-sonnet-4-6', r.usage, userId, null).catch(() => {})
   const text = r.content.map(b => (b.type === 'text' ? b.text : '')).join('\n')

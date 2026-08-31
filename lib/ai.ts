@@ -31,12 +31,29 @@ function extractJSON(text: string, bracket: '{'|'[') {
 
 // Llama a Claude y registra el coste real (tokens de la respuesta) en
 // api_usage_log — best-effort, nunca bloquea ni rompe la llamada.
-async function callAI(system: string, user: string, search = false, maxTokens = 1500, feature = 'unknown', ctx: { userId?: string | null; orgId?: string | null } = {}) {
+// Cuántas búsquedas web como MUCHO por llamada. Es la palanca de coste real:
+// el 93% de lo que gastamos son tokens de ENTRADA con el contenido de las
+// páginas que Claude descarga, no la respuesta que genera. Sin tope, una sola
+// llamada de descubrimiento llegó a meter 151.647 tokens de entrada (~0,45 €).
+const MAX_BUSQUEDAS_POR_DEFECTO = 4
+
+// Llama a Claude y registra el coste real (tokens de la respuesta) en
+// api_usage_log — best-effort, nunca bloquea ni rompe la llamada.
+async function callAI(
+  system: string, user: string, search = false, maxTokens = 1500,
+  feature = 'unknown', ctx: { userId?: string | null; orgId?: string | null } = {},
+  maxBusquedas = MAX_BUSQUEDAS_POR_DEFECTO,
+) {
   const rl = await checkRateLimit(feature, ctx.userId)
   if (!rl.allowed) throw new Error(rl.reason)
   const model = 'claude-sonnet-4-6'
   const body: any = { model, max_tokens:maxTokens, system, messages:[{role:'user',content:user}] }
-  if (search) body.tools = [{ type:'web_search_20250305', name:'web_search' }]
+  if (search) {
+    // web_search_20260318 filtra los resultados con código ANTES de meterlos en
+    // el contexto, en vez de volcar las páginas enteras. Está pensado justo
+    // para peticiones con muchas búsquedas como las nuestras.
+    body.tools = [{ type:'web_search_20260318', name:'web_search', max_uses: maxBusquedas }]
+  }
   const r = await ai.messages.create(body)
   logApiUsage({ feature, model, usage: r.usage as any, userId: ctx.userId, orgId: ctx.orgId }).catch(() => {})
   return (r.content as any[]).map(b => b.type==='text' ? b.text : '').join('\n')
@@ -45,7 +62,9 @@ async function callAI(system: string, user: string, search = false, maxTokens = 
 export async function analyzeGrant(input: string, userId?: string | null) {
   const sys = `Experto en subvenciones españolas. Devuelve SOLO JSON sin backticks:
 {"titulo":"","organismo":"","tipo":"publica|concurso|privada|europeo","ambito":"local|autonómico|nacional|europeo|internacional","importe_max":"","importe_min":"","cofinanciacion":"","plazo_solicitud":"YYYY-MM-DD o null","plazo_ejecucion":"YYYY-MM-DD o null","fecha_publicacion":"YYYY-MM-DD o null","resumen":"2-3 frases","requisitos":"uno por línea","documentacion":"documentos requeridos, uno por línea","url":"url o null","url_bases":"url bases reguladoras o null","elegibilidad":""}`
-  const text = await callAI(sys, `Analiza esta convocatoria:\n${input}`, true, 1500, 'analyze', { userId })
+  // 2 búsquedas bastan: el usuario ya nos da el enlace concreto, no hay que
+  // salir a explorar. Antes gastaba ~54.000 tokens de entrada por análisis.
+  const text = await callAI(sys, `Analiza esta convocatoria:\n${input}`, true, 1500, 'analyze', { userId }, 2)
   return extractJSON(text.replace(/```json|```/g,'').trim(), '{')
 }
 
@@ -97,7 +116,10 @@ No inventes programas ni URLs.`
 Busca premios, concursos y ayudas PRIVADAS relevantes para este negocio.`
   // 1500 tokens (antes 4000): con máximo 4 programas por respuesta sobra, y
   // esta función es la más cara del sistema (búsqueda web incluida).
-  const text = await callAI(sys, user, true, 1500, 'descubrir_privados', { userId: (org as any).user_id, orgId: (org as any).id })
+  // Es con diferencia la función más cara del sistema (~0,49 € por llamada,
+  // 151.000 tokens de entrada sin tope). 3 búsquedas es suficiente para
+  // encontrar programas reales del sector; más solo engordaba el contexto.
+  const text = await callAI(sys, user, true, 1500, 'descubrir_privados', { userId: (org as any).user_id, orgId: (org as any).id }, 3)
   const clean = text.replace(/```json|```/g, '').trim()
   try { return extractJSON(clean, '[') } catch { /* puede venir truncado */ }
   // Recuperación: rescata los objetos {...} completos aunque falte cerrar el array.
@@ -176,9 +198,13 @@ Cada sección: 1-2 frases cortas o una lista de 2-3 puntos, nunca párrafos larg
 - Requisitos conocidos: ${grant.requisitos || '—'}
 - URL de las bases: ${grant.url_bases || grant.url || 'no disponible'}
 
-Si la URL de las bases está disponible y los datos anteriores son insuficientes, consúltala para confirmar fechas e importes reales. No inventes nada que no puedas confirmar.`
+Trabaja SOLO con estos datos. Si falta algo, escribe "No especificado" en esa sección; no lo inventes ni lo deduzcas.`
 
-  const text = await callAI(sys, u, true, 700, 'resumen', { userId: (grant as any).user_id, orgId: (grant as any).org_id })
+  // Sin búsqueda web a propósito: la convocatoria ya viene de nuestro catálogo
+  // (título, importe, plazo, elegibilidad y el texto del anuncio ya ingerido),
+  // así que salir a internet solo añadía ~36.000 tokens de entrada por llamada
+  // —unos 0,12 €— para reescribir información que ya teníamos.
+  const text = await callAI(sys, u, false, 700, 'resumen', { userId: (grant as any).user_id, orgId: (grant as any).org_id })
   return text.trim()
 }
 
