@@ -29,13 +29,21 @@ function extractJSON(text: string, bracket: '{'|'[') {
   throw new Error('JSON sin cerrar')
 }
 
-// Llama a Claude y registra el coste real (tokens de la respuesta) en
-// api_usage_log — best-effort, nunca bloquea ni rompe la llamada.
 // Cuántas búsquedas web como MUCHO por llamada. Es la palanca de coste real:
 // el 93% de lo que gastamos son tokens de ENTRADA con el contenido de las
 // páginas que Claude descarga, no la respuesta que genera. Sin tope, una sola
 // llamada de descubrimiento llegó a meter 151.647 tokens de entrada (~0,45 €).
 const MAX_BUSQUEDAS_POR_DEFECTO = 4
+
+// Haiku 4.5 en lugar de Sonnet 4.6: 1$/5$ por millón de tokens frente a
+// 3$/15$, o sea un tercio del precio. Nuestras tareas son acotadas (extraer
+// datos, resumir en pocas frases, buscar programas de un sector), no
+// razonamiento complejo.
+// Nota: el filtrado dinámico de la búsqueda web (web_search_20260318) exige
+// modelo 4.6 o superior, así que con Haiku volvemos a la búsqueda básica.
+// max_uses sí funciona en todas las versiones y es lo que de verdad frena el
+// gasto; además, al bajar de modelo, cada token de esas búsquedas cuesta 1/3.
+export const MODELO = 'claude-haiku-4-5'
 
 // Llama a Claude y registra el coste real (tokens de la respuesta) en
 // api_usage_log — best-effort, nunca bloquea ni rompe la llamada.
@@ -46,13 +54,10 @@ async function callAI(
 ) {
   const rl = await checkRateLimit(feature, ctx.userId)
   if (!rl.allowed) throw new Error(rl.reason)
-  const model = 'claude-sonnet-4-6'
+  const model = MODELO
   const body: any = { model, max_tokens:maxTokens, system, messages:[{role:'user',content:user}] }
   if (search) {
-    // web_search_20260318 filtra los resultados con código ANTES de meterlos en
-    // el contexto, en vez de volcar las páginas enteras. Está pensado justo
-    // para peticiones con muchas búsquedas como las nuestras.
-    body.tools = [{ type:'web_search_20260318', name:'web_search', max_uses: maxBusquedas }]
+    body.tools = [{ type:'web_search_20250305', name:'web_search', max_uses: maxBusquedas }]
   }
   const r = await ai.messages.create(body)
   logApiUsage({ feature, model, usage: r.usage as any, userId: ctx.userId, orgId: ctx.orgId }).catch(() => {})

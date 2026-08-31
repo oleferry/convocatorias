@@ -7,8 +7,10 @@ import { T, FONT } from '@/lib/theme'
 const FEATURE_LABEL: Record<string, string> = {
   analyze: 'Analizar convocatoria (link/texto)',
   search_web: 'Buscar con IA (perfil)',
-  descubrir_privados: 'Descubrimiento de privados (cron)',
+  descubrir_privados: 'Descubrimiento de privados (cron mensual)',
   memoria: 'Generar memoria',
+  resumen: 'Resumen de las bases',
+  resumen_catalogo: 'Resumen del catálogo (ingesta)',
   unknown: 'Sin clasificar',
 }
 

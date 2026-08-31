@@ -31,10 +31,12 @@ export async function GET(req: NextRequest) {
     // De paso, refrescamos el radar (privados + europeos) — barato e idempotente
     let radar: any = null
     try { radar = await syncRadar(sb) } catch (e: any) { console.warn('[cron/ingest] radar:', e?.message) }
-    // Descubrimiento IA de privados: solo los lunes (semanal), acotado para no
-    // exceder el tiempo de la función. El resto de días sale barato.
+    // Descubrimiento IA de privados: UNA VEZ AL MES (día 1). Era semanal, pero
+    // se llevaba el 73% de todo el gasto de la API — con diferencia la función
+    // más cara — y lo que encuentra son programas recurrentes (premios anuales,
+    // aceleradoras), que no cambian de una semana a otra. Mensual basta.
     let descubrir: any = null
-    if (new Date().getDay() === 1 && process.env.ANTHROPIC_API_KEY) {
+    if (new Date().getDate() === 1 && process.env.ANTHROPIC_API_KEY) {
       try { descubrir = await syncDescubrimiento(sb, { max: 2 }) } catch (e: any) { console.warn('[cron/ingest] descubrir:', e?.message) }
     }
     return NextResponse.json({ ok: true, ...result, radar, descubrir })

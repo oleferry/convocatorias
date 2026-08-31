@@ -5,9 +5,13 @@
 import { createAdminSupabase } from './supabase-server'
 
 // $ por 1M tokens. Ver skill claude-api para precios actualizados.
+// Se mantiene Sonnet en la tabla: hay 490 llamadas históricas registradas con
+// ese modelo y el panel de costes debe seguir calculándolas bien.
 const PRICING: Record<string, { in: number; out: number }> = {
+  'claude-haiku-4-5': { in: 1, out: 5 },
   'claude-sonnet-4-6': { in: 3, out: 15 },
 }
+const PRICING_POR_DEFECTO = { in: 1, out: 5 }
 
 export interface AnthropicUsage {
   input_tokens?: number
@@ -17,7 +21,7 @@ export interface AnthropicUsage {
 }
 
 export function computeCostUsd(model: string, usage: AnthropicUsage): number {
-  const p = PRICING[model] || PRICING['claude-sonnet-4-6']
+  const p = PRICING[model] || PRICING_POR_DEFECTO
   const inTok = usage.input_tokens || 0
   const outTok = usage.output_tokens || 0
   // Cache write/read se cobra sobre el precio de entrada (aprox 1.25x / 0.1x);

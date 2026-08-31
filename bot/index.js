@@ -480,10 +480,15 @@ function extractJSON(text, bracket) {
 }
 
 // Registra el coste real de la llamada (espejo de lib/costs.ts) — best-effort.
-const PRICING = { 'claude-sonnet-4-6': { in: 3, out: 15 } }
+// Espejo de lib/costs.ts. Se mantiene Sonnet para que las llamadas
+// historicas se sigan calculando bien en el panel de costes.
+const PRICING = { 'claude-haiku-4-5': { in: 1, out: 5 }, 'claude-sonnet-4-6': { in: 3, out: 15 } }
+const PRICING_POR_DEFECTO = { in: 1, out: 5 }
+// Haiku 4.5: un tercio del precio de Sonnet. Espejo de MODELO en lib/ai.ts.
+const MODELO = 'claude-haiku-4-5' 
 async function logApiUsage(feature, model, usage, userId, orgId) {
   try {
-    const p = PRICING[model] || PRICING['claude-sonnet-4-6']
+    const p = PRICING[model] || PRICING_POR_DEFECTO
     const inTok = (usage && usage.input_tokens) || 0
     const outTok = (usage && usage.output_tokens) || 0
     const cacheTok = ((usage && usage.cache_creation_input_tokens) || 0) + ((usage && usage.cache_read_input_tokens) || 0)
@@ -519,11 +524,11 @@ Busca en BDNS, BOE, boletín de ${org.ccaa} y fondos europeos relevantes.`
   // max_uses + filtrado dinámico: sin tope, una búsqueda metía ~153.000 tokens
   // de entrada (~0,49 €). Espejo de lib/ai.ts.
   const r = await ai.messages.create({
-    model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys,
+    model: MODELO, max_tokens: 1500, system: sys,
     messages: [{ role: 'user', content: user }],
-    tools: [{ type: 'web_search_20260318', name: 'web_search', max_uses: 4 }],
+    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
   })
-  logApiUsage('search_web', 'claude-sonnet-4-6', r.usage, org.user_id, org.id).catch(() => {})
+  logApiUsage('search_web', MODELO, r.usage, org.user_id, org.id).catch(() => {})
   const text = r.content.map(b => (b.type === 'text' ? b.text : '')).join('\n')
   try { return extractJSON(text.replace(/```json|```/g, '').trim(), '[') }
   catch { return [] }
@@ -534,12 +539,12 @@ async function analyzeGrant(input, userId) {
   const sys = `Experto en subvenciones, concursos, premios y becas en España. Devuelve SOLO JSON sin backticks:
 {"titulo":"","organismo":"","tipo":"publica|concurso|privada|europeo","ambito":"local|autonómico|nacional|europeo|internacional","importe_max":"","plazo_solicitud":"YYYY-MM-DD o null","resumen":"2-3 frases","requisitos":"uno por línea","url":"url o null","elegibilidad":""}`
   const r = await ai.messages.create({
-    model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys,
+    model: MODELO, max_tokens: 1500, system: sys,
     messages: [{ role: 'user', content: `Analiza esto y extrae la convocatoria:\n${input}` }],
     // El usuario ya da el enlace: 2 búsquedas sobran para confirmar datos.
-    tools: [{ type: 'web_search_20260318', name: 'web_search', max_uses: 2 }],
+    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }],
   })
-  logApiUsage('analyze', 'claude-sonnet-4-6', r.usage, userId, null).catch(() => {})
+  logApiUsage('analyze', MODELO, r.usage, userId, null).catch(() => {})
   const text = r.content.map(b => (b.type === 'text' ? b.text : '')).join('\n')
   return extractJSON(text.replace(/```json|```/g, '').trim(), '{')
 }
