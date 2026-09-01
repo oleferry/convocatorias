@@ -45,16 +45,24 @@ const MAX_BUSQUEDAS_POR_DEFECTO = 4
 // gasto; además, al bajar de modelo, cada token de esas búsquedas cuesta 1/3.
 export const MODELO = 'claude-haiku-4-5'
 
+// Excepción a lo anterior: la memoria técnica es el documento que el cliente
+// paga y presenta a la administración, y es lo único que aquí sí es redacción
+// larga y de criterio. No lleva búsqueda web, así que ya era barata (~3.000
+// tokens de salida, céntimos): bajarla de modelo apenas ahorraba nada y se
+// jugaba justo la calidad del producto de pago.
+export const MODELO_CALIDAD = 'claude-sonnet-4-6'
+
 // Llama a Claude y registra el coste real (tokens de la respuesta) en
 // api_usage_log — best-effort, nunca bloquea ni rompe la llamada.
 async function callAI(
   system: string, user: string, search = false, maxTokens = 1500,
   feature = 'unknown', ctx: { userId?: string | null; orgId?: string | null } = {},
   maxBusquedas = MAX_BUSQUEDAS_POR_DEFECTO,
+  modelo: string = MODELO,
 ) {
   const rl = await checkRateLimit(feature, ctx.userId)
   if (!rl.allowed) throw new Error(rl.reason)
-  const model = MODELO
+  const model = modelo
   const body: any = { model, max_tokens:maxTokens, system, messages:[{role:'user',content:user}] }
   if (search) {
     body.tools = [{ type:'web_search_20250305', name:'web_search', max_uses: maxBusquedas }]
@@ -259,6 +267,8 @@ Estructura:
 
 Devuelve SOLO la memoria en Markdown.`
 
-  const text = await callAI(sys, u, false, 3000, 'memoria', { userId: (grant as any).user_id, orgId: (grant as any).org_id })
+  const text = await callAI(sys, u, false, 3000, 'memoria',
+    { userId: (grant as any).user_id, orgId: (grant as any).org_id },
+    MAX_BUSQUEDAS_POR_DEFECTO, MODELO_CALIDAD)
   return text.trim()
 }

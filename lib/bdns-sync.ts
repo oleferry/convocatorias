@@ -1,11 +1,10 @@
 // ================================================================
 //  Sincronización BDNS → catálogo (usable desde un endpoint de Vercel)
 //  Versión acotada para caber en el límite de tiempo de una función
-//  serverless. Pre-filtra por las CCAA de los perfiles de usuario.
+//  serverless. Ingiere toda España; acotar por usuario es cosa del
+//  matching, no de la ingesta.
 // ================================================================
-import { searchConvocatorias, getConvocatoriaDetail, normalizeDetail, normalizeCcaa, esEstatal } from './bdns'
-import { resolveLocalGeo } from './geo'
-import { generateResumenCatalogo } from './ai'
+import { searchConvocatorias, getConvocatoriaDetail, normalizeDetail } from './bdns'
 import { esConcesionDirecta } from './matching'
 
 function ymd(d: Date) { return d.toISOString().slice(0, 10) }
@@ -35,36 +34,25 @@ export async function syncBdns(
     else { since = new Date(); since.setDate(since.getDate() - (opts.sinceDays ?? 7)) }
   }
 
-  // CCAA/provincias activas (de los perfiles) → solo pedimos detalle de lo relevante
-  const { data: orgs } = await sb.from('organizations').select('ccaa, provincia').eq('is_archived', false)
-  const ccaaSet = new Set((orgs || []).map((o: any) => o.ccaa).filter(Boolean))
-  const provinciaSet = new Set((orgs || []).map((o: any) => o.provincia).filter(Boolean))
-  const hasFilter = ccaaSet.size > 0
-
-  // 1) Recolectar resúmenes de la ventana
+  // 1) Recolectar resúmenes de la ventana — de TODA España.
+  //
+  // Antes esto se acotaba a las CCAA de los perfiles existentes, y era una
+  // pescadilla que se mordía la cola: como todos los usuarios eran de Castilla
+  // y León, solo se ingerían ayudas de Castilla y León; las 16 páginas
+  // públicas del resto de comunidades se quedaban sin nada regional que
+  // enseñar y mostraban las mismas 198 estatales y europeas — 16 duplicados
+  // que Google descarta. Sin ayudas de Aragón no llegan usuarios de Aragón, y
+  // sin usuarios de Aragón no se ingerían ayudas de Aragón.
+  //
+  // Ingerir de más no ensucia a nadie: el filtro por capas de matching.ts ya
+  // descarta por ubicación antes de enseñar nada a un usuario. El ritmo queda
+  // acotado por `maxDetails` en cada pasada.
   const candidates: any[] = []
   let page = 0, totalPages = 1
   do {
     const res = await searchConvocatorias({ page, pageSize: 500, fechaDesde: since, fechaHasta: today, order: 'fechaRecepcion', direccion: 'asc' })
     totalPages = res.totalPages || 1
-    for (const it of res.content || []) {
-      if (!hasFilter) { candidates.push(it); continue }
-      const n1 = (it.nivel1 || '').toUpperCase()
-      // Ojo: la BDNS dice "ESTADO", no "ESTATAL" (ver esEstatal en bdns.ts).
-      if (esEstatal(n1)) { candidates.push(it); continue }
-      if (n1 === 'LOCAL') {
-        // nivel2 aquí es el municipio o "Diputación de X" (no una CCAA): hay que
-        // resolver su provincia/CCAA vía el catálogo INE antes de decidir.
-        const geo = resolveLocalGeo(it.nivel2, it.nivel3)
-        if (!geo || !ccaaSet.has(geo.ccaa)) continue
-        // Si algún perfil tiene provincia fijada, acotamos a esas (si no, solo por CCAA).
-        if (provinciaSet.size && !provinciaSet.has(geo.provincia)) continue
-        candidates.push(it)
-        continue
-      }
-      const ccaa = normalizeCcaa(it.nivel1, it.nivel2)
-      if (ccaa && ccaaSet.has(ccaa)) candidates.push(it)
-    }
+    for (const it of res.content || []) candidates.push(it)
     page++
   } while (page < totalPages && page < 20)
 
@@ -87,21 +75,12 @@ export async function syncBdns(
   const tISO = ymd(today)
   const useful = rows.filter(r => r.fecha_fin && r.fecha_fin >= tISO && !esConcesionDirecta(r.tipo_convocatoria))
 
-  // Resumen periodístico + importe real por beneficiario — UNA vez por
-  // convocatoria (no por usuario). Best-effort: si falla, se ingiere igual
-  // sin el resumen y ya se generará en un backfill posterior.
-  if (process.env.ANTHROPIC_API_KEY) {
-    for (const r of useful) {
-      try {
-        const { resumen, importeBeneficiario } = await generateResumenCatalogo(r)
-        if (resumen) {
-          (r as any).resumen_periodista = resumen
-          ;(r as any).importe_beneficiario = importeBeneficiario
-          ;(r as any).resumen_generado_at = new Date().toISOString()
-        }
-      } catch (e: any) { console.warn('[bdns-sync] resumen_catalogo:', e?.message) }
-    }
-  }
+  // Los resúmenes con IA ya NO se generan aquí. Cada uno tarda segundos, y al
+  // ingerir toda España (~124 convocatorias nuevas al día, en vez de las pocas
+  // de una sola comunidad) este bucle se comía el límite de 300 s de la
+  // función. Ahora los hace syncResumenCatalogo, que el cron llama justo
+  // después: busca las abiertas que no tengan resumen, sean de hoy o de otro
+  // día, así que ninguna se queda sin él — solo tarda alguna pasada más.
 
   for (let i = 0; i < useful.length; i += 200) {
     const { error } = await sb.from('convocatorias_publicas').upsert(useful.slice(i, i + 200), { onConflict: 'codigo_bdns' })

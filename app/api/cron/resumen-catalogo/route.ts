@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabase } from '@/lib/supabase-server'
-import { generateResumenCatalogo } from '@/lib/ai'
+import { syncResumenCatalogo } from '@/lib/resumen-catalogo'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
-// GET /api/cron/resumen-catalogo → backfill puntual: genera el resumen
-// periodístico + importe real por beneficiario para convocatorias BDNS ya
-// abiertas que aún no lo tienen. Se llama a mano (?key=CRON_SECRET), no está
-// en vercel.json — no es un cron automático, es un empujón de una vez.
-// Devuelve cuántas quedan para poder llamarla varias veces seguidas.
+// GET /api/cron/resumen-catalogo → genera el resumen periodístico + importe
+// real por beneficiario de las convocatorias BDNS abiertas que aún no lo
+// tienen. La ingesta diaria ya llama a esto por su cuenta; este endpoint es
+// para dar empujones a mano (?key=CRON_SECRET&max=N) cuando hay atasco.
+// Devuelve cuántas quedan, para poder llamarlo varias veces seguidas.
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
   if (secret) {
@@ -23,50 +23,9 @@ export async function GET(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ error: 'Falta ANTHROPIC_API_KEY' }, { status: 500 })
 
   try {
-    const sb = createAdminSupabase()
     const max = Number(req.nextUrl.searchParams.get('max') || 40)
-    const today = new Date().toISOString().slice(0, 10)
-
-    const { data: pending, error } = await sb.from('convocatorias_publicas')
-      .select('codigo_bdns,titulo,organo,finalidad,beneficiarios,anuncio_texto,presupuesto_total,ccaa,provincia,nivel1')
-      .or('fuente.is.null,fuente.eq.bdns')
-      .gte('fecha_fin', today)
-      .is('resumen_periodista', null)
-      .limit(max)
-    if (error) throw new Error(error.message)
-
-    let done = 0
-    const fallos: any[] = []
-    for (const row of (pending || [])) {
-      try {
-        const { resumen, importeBeneficiario } = await generateResumenCatalogo(row)
-        if (resumen) {
-          const { error: updErr, data: updData } = await sb.from('convocatorias_publicas').update({
-            resumen_periodista: resumen, importe_beneficiario: importeBeneficiario,
-            resumen_generado_at: new Date().toISOString(),
-          }).eq('codigo_bdns', row.codigo_bdns).select('codigo_bdns')
-          if (updErr) { fallos.push({ codigo_bdns: row.codigo_bdns, error: updErr.message }); continue }
-          if (!updData || !updData.length) { fallos.push({ codigo_bdns: row.codigo_bdns, error: 'update afectó 0 filas' }); continue }
-          done++
-        } else {
-          fallos.push({ codigo_bdns: row.codigo_bdns, error: 'sin resumen (IA no devolvió texto)' })
-        }
-      } catch (e: any) { fallos.push({ codigo_bdns: row.codigo_bdns, error: e?.message }) }
-    }
-
-    // .neq con un valor que nunca existe de verdad: no cambia qué filas cuenta,
-    // solo evita que una caché externa (delante de la API de Supabase) devuelva
-    // esta cuenta cacheada por tener siempre la misma URL exacta — ya nos pasó
-    // en el backfill real: "restantes" se quedó pegado varias vueltas seguidas.
-    const { count: remaining } = await sb.from('convocatorias_publicas')
-      .select('codigo_bdns', { count: 'exact', head: true })
-      .or('fuente.is.null,fuente.eq.bdns').gte('fecha_fin', today).is('resumen_periodista', null)
-      .neq('codigo_bdns', `__cache_bust_${Date.now()}`)
-
-    return NextResponse.json({
-      ok: true, procesadas: done, candidatas: (pending || []).length, restantes: remaining ?? 0,
-      fallos: fallos.slice(0, 5), total_fallos: fallos.length,
-    })
+    const result = await syncResumenCatalogo(createAdminSupabase(), { max })
+    return NextResponse.json({ ok: true, ...result })
   } catch (e: any) {
     console.error('[cron/resumen-catalogo]', e)
     return NextResponse.json({ error: e?.message || 'Error generando resúmenes' }, { status: 500 })
