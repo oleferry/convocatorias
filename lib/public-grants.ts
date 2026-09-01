@@ -66,7 +66,7 @@ export async function fetchOpenGrantsSummary(): Promise<{ ccaa: string | null; n
     .from('convocatorias_publicas')
     .select('ccaa,nivel1,fecha_fin,tipo_convocatoria')
     .or(`fecha_fin.is.null,fecha_fin.gte.${today}`)
-    .limit(2000)
+    .limit(5000)
   if (error) { console.error('[public-grants] summary', error.message); return [] }
   return (data || []).filter((r: any) => !esConcesionDirecta(r.tipo_convocatoria)).map((r: any) => ({ ccaa: r.ccaa, nivel1: r.nivel1 }))
 }
@@ -79,8 +79,15 @@ export async function fetchOpenGrantsForCcaa(ccaaName: string, sector?: Sector |
     .from('convocatorias_publicas')
     .select(SELECT_FIELDS)
     .or(`nivel1.eq.ESTATAL,ccaa.eq.${ccaaName}`)
+    // El plazo se filtra AQUÍ, no solo abajo en JS. Ordenando por fecha_fin
+    // ascendente, las primeras son las de plazo más antiguo —es decir, las ya
+    // caducadas—, así que un `limit` sin este filtro gastaba el cupo entero en
+    // convocatorias cerradas que el filtro de abajo tiraba después. Con el
+    // catálogo pequeño no se notaba; al pasar a toda España, Cataluña (453
+    // abiertas) mostraba 112.
+    .or(`fecha_fin.is.null,fecha_fin.gte.${today}`)
     .order('fecha_fin', { ascending: true, nullsFirst: false })
-    .limit(300)
+    .limit(600)
   if (error) { console.error('[public-grants] ccaa', error.message); return [] }
   let rows = (data || []).filter((r: any) => isOpen(r.fecha_fin, today) && !esConcesionDirecta(r.tipo_convocatoria))
   if (sector) rows = rows.filter((r: any) => matchesSector(r, sector))
