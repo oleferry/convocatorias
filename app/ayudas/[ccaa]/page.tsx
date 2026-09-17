@@ -6,7 +6,7 @@ import { ccaaSlug, ccaaFromSlug } from '@/lib/geo'
 import { fetchOpenGrantsForCcaa } from '@/lib/public-grants'
 import { SECTORES } from '@/lib/sectores'
 import { T, FONT_DISPLAY } from '@/lib/theme'
-import { PageShell, Breadcrumb, RegisterCta, GrantCard, EmptyState } from '../ui'
+import { PageShell, Breadcrumb, RegisterCta, GrantList, EmptyState } from '../ui'
 
 export const revalidate = 3600
 
@@ -33,12 +33,13 @@ export default async function CcaaPage({ params }: { params: { ccaa: string } })
   if (!name) notFound()
 
   const grants = await fetchOpenGrantsForCcaa(name)
+  const heading = `Ayudas y subvenciones abiertas en ${name}`
 
   return (
     <PageShell>
       <Breadcrumb items={[{ label: 'Ayudas', href: '/ayudas' }, { label: name }]} />
       <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 32, fontWeight: 700, margin: '0 0 10px', letterSpacing: '-0.01em' }}>
-        Ayudas y subvenciones abiertas en {name}
+        {heading}
       </h1>
       <p style={{ fontSize: 15, color: T.inkLight, maxWidth: 620, lineHeight: 1.6, marginBottom: 20 }}>
         {grants.length} convocatoria{grants.length !== 1 ? 's' : ''} abierta{grants.length !== 1 ? 's' : ''} ahora mismo: estatales y de {name}. Incluye BDNS, fondos europeos y premios privados.
@@ -58,9 +59,7 @@ export default async function CcaaPage({ params }: { params: { ccaa: string } })
       {grants.length === 0 ? (
         <EmptyState message={`No hay convocatorias abiertas en ${name} ahora mismo. Vuelve pronto o revisa el listado completo.`} backHref="/ayudas" backLabel="Ver todas las comunidades" />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
-          {grants.map(g => <GrantCard key={g.codigo_bdns} grant={g} />)}
-        </div>
+        <GrantList name={heading} grants={grants} />
       )}
     </PageShell>
   )
