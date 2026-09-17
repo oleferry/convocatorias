@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { T, FONT, FONT_DISPLAY, daysLeft, urgency } from '@/lib/theme'
 import { APP_URL } from '@/lib/site'
+import { JsonLd } from '@/lib/json-ld'
 import type { PublicGrantCard } from '@/lib/public-grants'
 
 export function PageShell({ children }: { children: React.ReactNode }) {
@@ -50,13 +51,7 @@ export function Breadcrumb({ items }: { items: { label: string; href?: string }[
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        // `<` escapado: una etiqueta de cierre dentro del JSON cerraría el
-        // script antes de tiempo. Hoy las etiquetas vienen de constantes
-        // nuestras, pero eso es una suposición sobre el futuro, no una defensa.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
-      />
+      <JsonLd data={jsonLd} />
       <div style={{ fontSize: 12.5, color: T.inkMuted, marginBottom: 18, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {items.map((it, i) => (
           <span key={i} style={{ display: 'flex', gap: 6 }}>
@@ -122,6 +117,47 @@ export function GrantCard({ grant }: { grant: PublicGrantCard }) {
         )}
       </div>
     </div>
+  )
+}
+
+// Listado de convocatorias, con su marcado `ItemList` incluido.
+//
+// Mismo razonamiento que Breadcrumb: la lista marcada y la lista pintada son la
+// MISMA variable, así que no pueden contar cosas distintas.
+//
+// Cada elemento lleva solo lo que la tarjeta enseña y es un hecho: el título y,
+// si la tarjeta tiene el enlace "Ver bases oficiales", esa URL. Las convocatorias
+// no tienen página propia en este sitio, así que la URL es la oficial, externa.
+//
+// Deliberadamente NO son `MonetaryGrant` ni `GovernmentService`. El importe que
+// pinta la tarjeta a veces es "hasta X" por beneficiario y a veces el presupuesto
+// total de la convocatoria; `amount` no distingue una cosa de la otra y le
+// diríamos a quien lo lea que te dan el presupuesto entero. Y el plazo es a veces
+// "sin plazo fijo". Mejor un dato de menos que uno falso.
+export function GrantList({ name, grants }: { name: string; grants: PublicGrantCard[] }) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    numberOfItems: grants.length,
+    itemListElement: grants.map((g, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: g.titulo,
+      // En schema.org `url` tiene que ser absoluta. Si la BDNS trae algo que no
+      // empieza por http(s), la tarjeta lo enlaza tal cual, pero al marcado no va:
+      // una URL relativa aquí apuntaría a nuestro dominio, no a las bases.
+      ...(g.bases_url && /^https?:\/\//i.test(g.bases_url) ? { url: g.bases_url } : {}),
+    })),
+  }
+
+  return (
+    <>
+      <JsonLd data={jsonLd} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
+        {grants.map(g => <GrantCard key={g.codigo_bdns} grant={g} />)}
+      </div>
+    </>
   )
 }
 
