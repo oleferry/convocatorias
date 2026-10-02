@@ -17,7 +17,7 @@ export interface SyncResult {
 
 export async function syncBdns(
   sb: any,
-  opts: { sinceDays?: number; maxDetails?: number; desde?: Date; hasta?: Date; backfill?: boolean; offset?: number } = {},
+  opts: { sinceDays?: number; maxDetails?: number; desde?: Date; hasta?: Date; backfill?: boolean; offset?: number; hastaMs?: number } = {},
 ): Promise<SyncResult> {
   const maxDetails = opts.maxDetails ?? 120
   const today = opts.hasta ?? new Date()
@@ -62,8 +62,12 @@ export async function syncBdns(
   // cerrado), así que sin paginar solo se veía la parte inútil de la ventana.
   const offset = opts.offset ?? 0
   const rows: any[] = []
-  const limit = Math.min(candidates.length, offset + maxDetails)
+  let limit = Math.min(candidates.length, offset + maxDetails)
   for (let i = offset; i < limit; i++) {
+    // Tope de tiempo opcional: si se acaba, se para aquí y se guarda lo hecho
+    // (siguienteOffset dice por dónde seguir), en vez de que la función muera
+    // a los 300 s sin guardar nada.
+    if (opts.hastaMs && Date.now() > opts.hastaMs) { limit = i; break }
     try { rows.push(normalizeDetail(await getConvocatoriaDetail(candidates[i].numeroConvocatoria))) }
     catch { /* salta los que fallen */ }
     await sleep(20)

@@ -53,6 +53,8 @@ export interface BdnsDetail {
   abierto?: boolean
   fechaInicioSolicitud?: string | null
   fechaFinSolicitud?: string | null
+  /** El plazo contado en texto: «Hasta el 30-12-2026 o hasta agotar…». */
+  textFin?: string | null
   ayudaEstado?: string | null
   anuncios?: { texto?: string }[]
 }
@@ -191,6 +193,49 @@ function stripHtml(html?: string | null): string | null {
   return s ? s.slice(0, 4000) : null
 }
 
+// ── Fin de plazo escrito en texto ──────────────────────────────
+// Muchas convocatorias llegan de la BDNS SIN `fechaFinSolicitud`: el plazo va
+// solo en `textFin`, en texto libre. Pasa sobre todo en las que se conceden
+// por orden de llegada («hasta el 30-12-2026 o hasta agotar el presupuesto»)
+// y en las de organismos «OTROS», como las Cámaras de Comercio — justo las que
+// puede pedir una pyme. La ingesta las tiraba todas por no tener fecha: el
+// 02-10-2026, Talento Joven de la Cámara de Valladolid (BDNS 905603, 5.000 €
+// por joven contratado, abierta hasta el 30-12-2026) no estaba en el catálogo.
+//
+// Y no vale fiarse de `abierto`: en esa misma convocatoria viene a false.
+//
+// Se toma la ÚLTIMA fecha completa del texto («desde el 1 de enero hasta el 31
+// de marzo de 2027» → 31-03-2027). Si no hay ninguna (p. ej. «veinte días
+// hábiles desde la publicación»), null: mejor no tenerla que inventarle un
+// plazo.
+const MESES: Record<string, number> = {
+  enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7,
+  agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
+}
+
+export function fechaFinDeTexto(texto?: string | null): string | null {
+  if (!texto) return null
+  const s = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const fechas: { pos: number; iso: string }[] = []
+  const iso = (d: number, m: number, y: number) => {
+    if (y < 100) y += 2000
+    const f = new Date(Date.UTC(y, m - 1, d))
+    // Descarta fechas imposibles (31-02) en vez de dejar que Date las arrastre.
+    if (f.getUTCFullYear() !== y || f.getUTCMonth() !== m - 1 || f.getUTCDate() !== d) return null
+    return f.toISOString().slice(0, 10)
+  }
+  for (const m of s.matchAll(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b/g)) {
+    const f = iso(+m[1], +m[2], +m[3]); if (f) fechas.push({ pos: m.index ?? 0, iso: f })
+  }
+  for (const m of s.matchAll(/\b(\d{1,2})\s+de\s+([a-z]+)\s+(?:de|del)\s+(\d{4})\b/g)) {
+    const mes = MESES[m[2]]; if (!mes) continue
+    const f = iso(+m[1], mes, +m[3]); if (f) fechas.push({ pos: m.index ?? 0, iso: f })
+  }
+  if (!fechas.length) return null
+  fechas.sort((a, b) => a.pos - b.pos)
+  return fechas[fechas.length - 1].iso
+}
+
 // ── Normalizador detalle → fila de catálogo ────────────────────
 export function normalizeDetail(d: BdnsDetail): ConvocatoriaPublicaRow {
   const nivel1 = normalizeNivel1(d.organo?.nivel1)   // ESTADO → ESTATAL
@@ -225,7 +270,7 @@ export function normalizeDetail(d: BdnsDetail): ConvocatoriaPublicaRow {
     mrr: !!d.mrr,
     abierto: !!d.abierto,
     fecha_inicio: d.fechaInicioSolicitud || null,
-    fecha_fin: d.fechaFinSolicitud || null,
+    fecha_fin: d.fechaFinSolicitud || fechaFinDeTexto(d.textFin),
     fecha_recepcion: d.fechaRecepcion || null,
     anuncio_texto: stripHtml(d.anuncios?.[0]?.texto),
   }
