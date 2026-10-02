@@ -73,10 +73,14 @@ export default async function FichaAyuda({ params }: { params: { codigo: string 
       )}
 
       <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 700, margin: '0 0 10px', letterSpacing: '-0.01em', lineHeight: 1.25 }}>
-        {g.titulo}
+        {g.tituloEntero}
       </h1>
-      {g.tituloCompleto !== g.titulo && (
-        <p style={{ fontSize: 13.5, color: T.inkLight, lineHeight: 1.55, margin: '0 0 18px' }}>{g.tituloCompleto}</p>
+      {/* El título oficial solo si dice algo más que el encabezado: suele
+          empezar por «Resolución de… por la que se convoca…». */}
+      {g.tituloCompleto.toLowerCase() !== g.tituloEntero.toLowerCase() && (
+        <p style={{ fontSize: 13.5, color: T.inkLight, lineHeight: 1.55, margin: '0 0 18px' }}>
+          <span style={{ color: T.inkMuted }}>Título oficial: </span>{g.tituloCompleto}
+        </p>
       )}
 
       {g.abierta && dias !== null && dias >= 0 && (
@@ -120,7 +124,9 @@ export default async function FichaAyuda({ params }: { params: { codigo: string 
         )}
       </div>
 
-      {g.abierta && !g.concesionDirecta && (
+      {/* «¿Te la tramitamos?» solo donde una gestoría puede hacer algo: abiertas,
+          con concurrencia y que pueden pedir empresas o autónomos. */}
+      {g.abierta && !g.concesionDirecta && g.paraEmpresas && (
         <>
           <SolicitudForm codigo={g.codigo_bdns} documentacion={documentacionHabitual()} />
           <RegisterCta text="¿Quieres que te avisemos cuando salgan otras como esta? Crea tu perfil de empresa gratis y te mandamos solo las que encajan." />
