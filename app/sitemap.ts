@@ -3,7 +3,7 @@ import { CCAA } from '@/lib/types'
 import { ccaaSlug } from '@/lib/geo'
 import { SECTORES } from '@/lib/sectores'
 import { APP_URL } from '@/lib/site'
-import { fetchSectorCounts, MIN_PROPIAS_PARA_INDEXAR } from '@/lib/public-grants'
+import { fetchSectorCounts, fetchIndexableGrantCodes, grantPath, MIN_PROPIAS_PARA_INDEXAR } from '@/lib/public-grants'
 
 // Se recalcula cada hora, como las páginas: qué página de sector entra depende
 // de cuántas convocatorias propias tiene hoy.
@@ -37,6 +37,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (cuentas && (cuentas.get(clave) ?? 0) < MIN_PROPIAS_PARA_INDEXAR) continue
       entries.push({ url: `${APP_URL}/ayudas/${clave}`, lastModified: now, changeFrequency: 'daily', priority: 0.6 })
     }
+  }
+
+  // Una ficha por convocatoria abierta con texto propio suficiente. Las cerradas,
+  // las de concesión directa y las que apenas traen texto llevan noindex en
+  // app/ayuda/[codigo]/page.tsx y no se ofrecen aquí.
+  for (const { codigo, desde } of (await fetchIndexableGrantCodes()) ?? []) {
+    entries.push({
+      url: `${APP_URL}${grantPath(codigo)}`,
+      ...(desde ? { lastModified: new Date(desde) } : {}),
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    })
   }
   return entries
 }
