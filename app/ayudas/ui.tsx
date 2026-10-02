@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { T, FONT, FONT_DISPLAY, daysLeft, urgency } from '@/lib/theme'
 import { APP_URL } from '@/lib/site'
 import { JsonLd } from '@/lib/json-ld'
-import type { PublicGrantCard } from '@/lib/public-grants'
+import { grantPath, type PublicGrantCard } from '@/lib/public-grants'
 
 export function PageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -93,7 +93,9 @@ export function GrantCard({ grant }: { grant: PublicGrantCard }) {
     <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: '18px 20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.ink, lineHeight: 1.35, flex: 1, minWidth: 220 }}>
-          {grant.titulo}
+          <Link href={grantPath(grant.codigo_bdns)} style={{ color: T.ink, textDecoration: 'none' }}>
+            {grant.titulo}
+          </Link>
         </h3>
         {grant.importe && (
           <span style={{ textAlign: 'right' }}>
@@ -125,9 +127,9 @@ export function GrantCard({ grant }: { grant: PublicGrantCard }) {
 // Mismo razonamiento que Breadcrumb: la lista marcada y la lista pintada son la
 // MISMA variable, así que no pueden contar cosas distintas.
 //
-// Cada elemento lleva solo lo que la tarjeta enseña y es un hecho: el título y,
-// si la tarjeta tiene el enlace "Ver bases oficiales", esa URL. Las convocatorias
-// no tienen página propia en este sitio, así que la URL es la oficial, externa.
+// Cada elemento lleva solo lo que la tarjeta enseña y es un hecho: el título y
+// la URL de su ficha en este sitio (/ayuda/<codigo>), que es adonde lleva el
+// título de la tarjeta.
 //
 // Deliberadamente NO son `MonetaryGrant` ni `GovernmentService`. El importe que
 // pinta la tarjeta a veces es "hasta X" por beneficiario y a veces el presupuesto
@@ -144,10 +146,7 @@ export function GrantList({ name, grants }: { name: string; grants: PublicGrantC
       '@type': 'ListItem',
       position: i + 1,
       name: g.titulo,
-      // En schema.org `url` tiene que ser absoluta. Si la BDNS trae algo que no
-      // empieza por http(s), la tarjeta lo enlaza tal cual, pero al marcado no va:
-      // una URL relativa aquí apuntaría a nuestro dominio, no a las bases.
-      ...(g.bases_url && /^https?:\/\//i.test(g.bases_url) ? { url: g.bases_url } : {}),
+      url: `${APP_URL}${grantPath(g.codigo_bdns)}`,
     })),
   }
 

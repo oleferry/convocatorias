@@ -171,3 +171,77 @@ async function fetchOpenRowsForCcaa(ccaaName: string): Promise<any[]> {
   if (error) { console.error('[public-grants] ccaa', error.message); return [] }
   return (data || []).filter((r: any) => isOpen(r.fecha_fin, today) && !esConcesionDirecta(r.tipo_convocatoria))
 }
+
+// ── Ficha pública de una convocatoria: /ayuda/<codigo> ──────────────────
+
+/** Lo que pinta la ficha de una convocatoria. */
+export interface PublicGrantDetail extends PublicGrantCard {
+  tituloCompleto: string
+  nivel1: string | null
+  ccaa: string | null
+  beneficiarios: string[]
+  fechaInicio: string | null
+  sede_url: string | null
+  abierta: boolean
+  concesionDirecta: boolean
+  /** ¿Tiene texto propio suficiente para ofrecérsela a Google? */
+  indexable: boolean
+}
+
+/** Ruta de la ficha. El código puede traer caracteres raros (las privadas son `priv-…`). */
+export function grantPath(codigo: string): string {
+  return `/ayuda/${encodeURIComponent(codigo)}`
+}
+
+/**
+ * Mínimo de texto propio (resumen o finalidad) para indexar una ficha. Por
+ * debajo, la página repetiría el título y el organismo y poco más: es justo la
+ * página fina que un buscador castiga en un dominio joven. Sigue existiendo
+ * para quien llega desde un listado, con noindex.
+ */
+const MIN_CARACTERES_PROPIOS = 80
+
+function esIndexable(row: any, abierta: boolean): boolean {
+  const texto = (row.resumen_periodista || row.finalidad || '').trim()
+  return abierta && !esConcesionDirecta(row.tipo_convocatoria) && texto.length >= MIN_CARACTERES_PROPIOS
+}
+
+export async function fetchGrantByCode(codigo: string): Promise<PublicGrantDetail | null> {
+  const sb = createPublicSupabase()
+  const { data, error } = await sb
+    .from('convocatorias_publicas')
+    .select(`${SELECT_FIELDS},sede_url`)
+    .eq('codigo_bdns', codigo)
+    .maybeSingle()
+  if (error) { console.error('[public-grants] ficha', error.message); return null }
+  if (!data) return null
+  const today = new Date().toISOString().slice(0, 10)
+  const abierta = isOpen(data.fecha_fin, today)
+  return {
+    ...toCard(data),
+    tituloCompleto: (data.titulo || '').replace(/\s+/g, ' ').trim(),
+    nivel1: data.nivel1,
+    ccaa: data.ccaa,
+    beneficiarios: (data.beneficiarios || []).filter(Boolean),
+    fechaInicio: data.fecha_inicio,
+    sede_url: data.sede_url,
+    abierta,
+    concesionDirecta: esConcesionDirecta(data.tipo_convocatoria),
+    indexable: esIndexable(data, abierta),
+  }
+}
+
+/** Códigos de las fichas que se ofrecen a Google en el sitemap. `null` si la consulta falla. */
+export async function fetchIndexableGrantCodes(): Promise<{ codigo: string; desde: string | null }[] | null> {
+  const sb = createPublicSupabase()
+  const today = new Date().toISOString().slice(0, 10)
+  const { data, error } = await sb
+    .from('convocatorias_publicas')
+    .select('codigo_bdns,tipo_convocatoria,fecha_fin,fecha_recepcion,finalidad,resumen_periodista')
+    .or(`fecha_fin.is.null,fecha_fin.gte.${today}`)
+    .limit(5000)
+  if (error) { console.error('[public-grants] codigos', error.message); return null }
+  return (data || [])
+    .filter((r: any) => esIndexable(r, isOpen(r.fecha_fin, today)))
+    .map((r: any) => ({ codigo: r.codigo_bdns, desde: r.fecha_recepcion }))
+}
