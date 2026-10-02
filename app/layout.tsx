@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/react'
 import { APP_URL } from '@/lib/site'
 import { JsonLd } from '@/lib/json-ld'
+import { TITULAR, EMAIL_CONTACTO, titularCompleto } from '@/lib/legal'
 
 const SITE_NAME = 'DamePerrasPerro'
 const TITLE = `${SITE_NAME} — El perro que encuentra las perras`
@@ -11,9 +12,10 @@ const DESCRIPTION = 'La IA que rastrea ayudas, subvenciones y convocatorias ante
 //
 // Solo lleva lo que el propio sitio ya dice de sí mismo: el nombre, la URL, el
 // logo que sirve como icono y la descripción de los metadatos. Nada de
-// `aggregateRating`, número de usuarios ni cifras: no hay reseñas que marcar. Y
-// tampoco email, razón social ni NIF, porque no hay página legal que los declare;
-// cuando la haya, se añaden desde ahí.
+// `aggregateRating`, número de usuarios ni cifras: no hay reseñas que marcar.
+// El correo sale de lib/legal.ts. La razón social y el NIF solo si la titular
+// fuera una sociedad: hoy es una persona física, y su NIF va donde la ley lo
+// exige (el aviso legal), no repartido por los datos estructurados.
 //
 // Los `@id` enlazan WebSite con su Organization sin repetirla; las migas y los
 // listados de /ayudas van en sus propias páginas, no aquí.
@@ -27,6 +29,10 @@ const SITE_JSON_LD = {
       name: SITE_NAME,
       url: APP_URL,
       logo: `${APP_URL}/logo.png`,
+      email: EMAIL_CONTACTO,
+      ...(titularCompleto() && !TITULAR.personaFisica
+        ? { legalName: TITULAR.razonSocial, taxID: TITULAR.nif }
+        : {}),
     },
     {
       '@type': 'WebSite',

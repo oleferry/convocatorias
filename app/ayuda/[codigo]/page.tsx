@@ -5,6 +5,8 @@ import { fetchGrantByCode, grantPath } from '@/lib/public-grants'
 import { ccaaSlug } from '@/lib/geo'
 import { T, FONT_DISPLAY, daysLeft } from '@/lib/theme'
 import { PageShell, Breadcrumb, RegisterCta } from '../../ayudas/ui'
+import { documentacionHabitual } from '@/lib/tramitacion'
+import SolicitudForm from './SolicitudForm'
 
 // Ficha pública de una convocatoria.
 //
@@ -118,8 +120,11 @@ export default async function FichaAyuda({ params }: { params: { codigo: string 
         )}
       </div>
 
-      {g.abierta && (
-        <RegisterCta text="¿Prefieres no pelearte con el papeleo? Crea tu cuenta gratis, guarda esta convocatoria y pulsa «Quiero ayuda»: te ponemos en contacto con una gestoría que te la tramita." />
+      {g.abierta && !g.concesionDirecta && (
+        <>
+          <SolicitudForm codigo={g.codigo_bdns} documentacion={documentacionHabitual()} />
+          <RegisterCta text="¿Quieres que te avisemos cuando salgan otras como esta? Crea tu perfil de empresa gratis y te mandamos solo las que encajan." />
+        </>
       )}
 
       <p style={{ fontSize: 13.5, marginTop: 8 }}>

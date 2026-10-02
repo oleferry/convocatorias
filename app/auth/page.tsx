@@ -142,6 +142,12 @@ export default function AuthPage() {
               {resending?'Enviando…':'¿No te ha llegado? Reenviar email de confirmación'}
             </button>
           )}
+          {mode==='register'&&(
+            <p style={{margin:0,fontSize:12,color:C.slate,lineHeight:1.5}}>
+              Al crear la cuenta aceptas el <a href="/aviso-legal" target="_blank" style={{color:C.ink}}>aviso legal</a>.
+              Tratamos tus datos para darte el servicio, como explica la <a href="/privacidad" target="_blank" style={{color:C.ink}}>política de privacidad</a>.
+            </p>
+          )}
           <button onClick={submit} disabled={loading||!email||(mode!=='forgot'&&!pass)} style={{padding:'12px',
             background:loading?C.slate:C.gold,color:T.inkOnAccent,border:'none',borderRadius:8,
             fontSize:15,fontWeight:800,cursor:loading?'not-allowed':'pointer',marginTop:4}}>

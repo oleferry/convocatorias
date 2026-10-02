@@ -105,6 +105,9 @@ function GestoriaForm() {
           padding: '13px 20px', background: state === 'sending' ? T.inkMuted : T.gold, color: T.inkOnAccent,
           border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: state === 'sending' ? 'wait' : 'pointer',
         }}>{state === 'sending' ? 'Enviando…' : 'Quiero recibir leads'}</button>
+        <p style={{ margin: 0, fontSize: 12, color: T.inkMuted }}>
+          Usamos estos datos solo para contestarte. Más en la <a href="/privacidad" style={{ color: T.inkMid }}>política de privacidad</a>.
+        </p>
       </div>
     </div>
   )
@@ -133,12 +136,13 @@ export default function Landing() {
         </h1>
         <p style={{ fontSize: 18, color: T.inkMid, lineHeight: 1.6, maxWidth: 580, margin: '0 0 30px' }}>
           Vigilo la BDNS, las ayudas autonómicas y locales, los fondos europeos y los premios privados de tu sector — y te aviso en cuanto hay una que encaja con tu empresa.
+          Y si no quieres pelearte con el papeleo, <b style={{ color: T.ink }}>te la tramita una gestoría y solo pagas si te la conceden</b>.
         </p>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
           <CTAButton href="/auth">🐶 Crear cuenta gratis</CTAButton>
-          <CTAButton href="#como-funciona" primary={false}>Ver cómo funciona</CTAButton>
+          <CTAButton href="/ayudas" primary={false}>Ver ayudas abiertas</CTAButton>
         </div>
-        <p style={{ fontSize: 13, color: T.inkMuted, marginTop: 16 }}>Sin tarjeta. En 2 minutos tienes tu perfil listo.</p>
+        <p style={{ fontSize: 13, color: T.inkMuted, marginTop: 16 }}>Los avisos son gratis y sin tarjeta. La tramitación, solo si te la conceden.</p>
       </div>
 
       {/* PROBLEMA */}
@@ -153,12 +157,12 @@ export default function Landing() {
       {/* CÓMO FUNCIONA */}
       <div id="como-funciona" style={{ ...wrap, padding: '20px 24px 64px' }}>
         <h2 style={{ ...h2, textAlign: 'center' }}>Cómo trabajo</h2>
-        <p style={{ ...lead, textAlign: 'center', margin: '0 auto 32px' }}>Cuatro pasos, cero esfuerzo por tu parte.</p>
+        <p style={{ ...lead, textAlign: 'center', margin: '0 auto 32px' }}>Cuatro pasos. El último, si quieres, lo hace otro.</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 16 }}>
           <Paso n={1} icon="🏢" titulo="Creas tu perfil" texto="CNAE, IAE (opcional), CCAA, provincia y municipio. Cuanto más preciso, mejor te encajo las ayudas." />
           <Paso n={2} icon="🐾" titulo="Olfateo cada día" texto="Cruzo tu perfil con la BDNS (estatal, autonómica y local), fondos europeos y ayudas privadas que descubro con IA." />
           <Paso n={3} icon="🔔" titulo="Te aviso" texto="Resumen semanal por email, y al instante por Telegram si lo conectas. Sin ruido: solo lo que de verdad te toca." />
-          <Paso n={4} icon="📋" titulo="Lo gestionas" texto="Guardas la convocatoria, marcas el estado, y hasta te genero un borrador de memoria con IA para presentar la solicitud." />
+          <Paso n={4} icon="🤝" titulo="Te la tramitan" texto="Si quieres, una gestoría colaboradora mira si cumples, te da presupuesto antes de empezar y la presenta. Solo pagas si te la conceden." />
         </div>
       </div>
 
@@ -184,26 +188,31 @@ export default function Landing() {
       </div>
 
       {/* PRECIO */}
+      {/* Antes había un plan «Pro — próximamente» con memorias de IA: le decía a la
+          pyme «hazlo tú», justo lo contrario de «te lo tramitamos». Se quita: el
+          negocio es la tramitación (ver /condiciones). */}
       <div style={{ ...wrap, padding: '20px 24px 64px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px,1fr))', gap: 16, maxWidth: 780, margin: '0 auto' }}>
+        <h2 style={{ ...h2, textAlign: 'center' }}>Cuánto cuesta</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px,1fr))', gap: 16, maxWidth: 780, margin: '24px auto 0' }}>
           <div style={card}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Gratis</div>
-            <div style={{ fontSize: 28, fontWeight: 800, margin: '8px 0' }}>0 €</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Avisos</div>
+            <div style={{ fontSize: 28, fontWeight: 800, margin: '8px 0' }}>Gratis</div>
             <ul style={{ margin: 0, padding: '0 0 0 18px', color: T.inkMid, fontSize: 14, lineHeight: 1.9 }}>
-              <li>1 perfil de empresa</li>
-              <li>Sugerencias ilimitadas</li>
-              <li>Resumen semanal por email</li>
+              <li>Tu perfil de empresa</li>
+              <li>Las ayudas que te encajan, sin ruido</li>
+              <li>Resumen semanal y avisos de plazo</li>
             </ul>
           </div>
-          <div style={{ ...card, border: `2px solid ${T.gold}`, position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -12, right: 20, background: T.gold, color: T.inkOnAccent, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 12 }}>PRÓXIMAMENTE</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pro</div>
-            <div style={{ fontSize: 28, fontWeight: 800, margin: '8px 0' }}>—</div>
+          <div style={{ ...card, border: `2px solid ${T.gold}` }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tramitación</div>
+            <div style={{ fontSize: 28, fontWeight: 800, margin: '8px 0' }}>Solo si te la conceden</div>
             <ul style={{ margin: 0, padding: '0 0 0 18px', color: T.inkMid, fontSize: 14, lineHeight: 1.9 }}>
-              <li>Varios perfiles de empresa</li>
-              <li>Alertas por Telegram al instante</li>
-              <li>Memorias con IA ilimitadas</li>
+              <li>La prepara y la presenta una gestoría colaboradora</li>
+              <li>Presupuesto por escrito antes de empezar</li>
+              <li>Si no sale, no pagas honorarios</li>
+              <li>Por venir de aquí no pagas más</li>
             </ul>
+            <a href="/condiciones" style={{ display: 'inline-block', marginTop: 12, fontSize: 13.5, color: T.gold, fontWeight: 700, textDecoration: 'none' }}>Cómo funciona →</a>
           </div>
         </div>
       </div>
@@ -240,7 +249,12 @@ export default function Landing() {
       {/* FOOTER */}
       <div style={{ ...wrap, padding: '24px', borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><BrandMark size={24} /><span style={{ fontSize: 13, color: T.inkMuted }}>DamePerrasPerro — el perro que encuentra las perras</span></div>
-        <a href="mailto:perro@dameperrasperro.es" style={{ fontSize: 13, color: T.inkMuted, textDecoration: 'none' }}>perro@dameperrasperro.es</a>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
+          <a href="/aviso-legal" style={{ color: T.inkMuted, textDecoration: 'none' }}>Aviso legal</a>
+          <a href="/privacidad" style={{ color: T.inkMuted, textDecoration: 'none' }}>Privacidad</a>
+          <a href="/condiciones" style={{ color: T.inkMuted, textDecoration: 'none' }}>Condiciones de tramitación</a>
+          <a href="mailto:perro@dameperrasperro.es" style={{ color: T.inkMuted, textDecoration: 'none' }}>perro@dameperrasperro.es</a>
+        </div>
       </div>
     </div>
   )
