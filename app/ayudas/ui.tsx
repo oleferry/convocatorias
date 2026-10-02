@@ -20,6 +20,22 @@ export function PageShell({ children }: { children: React.ReactNode }) {
       <div style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 72px' }}>
         {children}
       </div>
+      <PieLegal />
+    </div>
+  )
+}
+
+/** Enlaces legales del pie. La LSSI exige que el aviso legal sea accesible desde toda la web. */
+export function PieLegal() {
+  const a: React.CSSProperties = { color: T.inkMuted, textDecoration: 'none' }
+  return (
+    <div style={{ borderTop: `1px solid ${T.border}`, padding: '20px 24px', fontSize: 12.5 }}>
+      <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', gap: 16, flexWrap: 'wrap', color: T.inkMuted }}>
+        <Link href="/aviso-legal" style={a}>Aviso legal</Link>
+        <Link href="/privacidad" style={a}>Privacidad</Link>
+        <Link href="/condiciones" style={a}>Condiciones de tramitación</Link>
+        <a href="mailto:perro@dameperrasperro.es" style={a}>perro@dameperrasperro.es</a>
+      </div>
     </div>
   )
 }

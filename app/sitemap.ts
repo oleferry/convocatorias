@@ -21,6 +21,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Los listados sí cambian a diario: el cron ingiere convocatorias nuevas y
     // cierra las que vencen.
     { url: `${APP_URL}/ayudas`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
+    { url: `${APP_URL}/condiciones`, changeFrequency: 'yearly', priority: 0.4 },
+    { url: `${APP_URL}/aviso-legal`, changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${APP_URL}/privacidad`, changeFrequency: 'yearly', priority: 0.2 },
   ]
 
   // Las páginas de sector solo entran si tienen convocatorias propias
