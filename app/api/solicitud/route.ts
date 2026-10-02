@@ -49,6 +49,10 @@ export async function POST(req: NextRequest) {
   const grant = codigo ? await fetchGrantByCode(codigo) : null
   if (!grant) return NextResponse.json({ error: 'No encontramos esa convocatoria.' }, { status: 404 })
   if (!grant.abierta) return NextResponse.json({ error: 'Esa convocatoria ya está cerrada.' }, { status: 400 })
+  // La ficha no enseña el formulario en estas; esto es por si llega a mano.
+  if (!grant.paraEmpresas || grant.concesionDirecta) {
+    return NextResponse.json({ error: 'Esta convocatoria no es para empresas ni autónomos: no la tramitamos.' }, { status: 400 })
+  }
 
   const sb = createAdminSupabase()
 

@@ -5,7 +5,7 @@
 //  diario. Pensado para Server Components estáticos/ISR.
 // ================================================================
 import { createPublicSupabase } from './supabase-server'
-import { sectionLetter, esConcesionDirecta } from './matching'
+import { sectionLetter, esConcesionDirecta, esParaEmpresas } from './matching'
 import { tituloCorto, formatEuro } from './matching'
 import type { Sector } from './sectores'
 
@@ -177,6 +177,8 @@ async function fetchOpenRowsForCcaa(ccaaName: string): Promise<any[]> {
 /** Lo que pinta la ficha de una convocatoria. */
 export interface PublicGrantDetail extends PublicGrantCard {
   tituloCompleto: string
+  /** El núcleo del título (sin «Resolución de… por la que se convoca»), sin cortar. */
+  tituloEntero: string
   nivel1: string | null
   ccaa: string | null
   beneficiarios: string[]
@@ -184,6 +186,8 @@ export interface PublicGrantDetail extends PublicGrantCard {
   sede_url: string | null
   abierta: boolean
   concesionDirecta: boolean
+  /** ¿La pueden pedir empresas, pymes o autónomos? Ver `esParaEmpresas`. */
+  paraEmpresas: boolean
   /** ¿Tiene texto propio suficiente para ofrecérsela a Google? */
   indexable: boolean
 }
@@ -220,6 +224,7 @@ export async function fetchGrantByCode(codigo: string): Promise<PublicGrantDetai
   return {
     ...toCard(data),
     tituloCompleto: (data.titulo || '').replace(/\s+/g, ' ').trim(),
+    tituloEntero: tituloCorto(data.titulo, Infinity),
     nivel1: data.nivel1,
     ccaa: data.ccaa,
     beneficiarios: (data.beneficiarios || []).filter(Boolean),
@@ -227,6 +232,7 @@ export async function fetchGrantByCode(codigo: string): Promise<PublicGrantDetai
     sede_url: data.sede_url,
     abierta,
     concesionDirecta: esConcesionDirecta(data.tipo_convocatoria),
+    paraEmpresas: esParaEmpresas(data.beneficiarios),
     indexable: esIndexable(data, abierta),
   }
 }

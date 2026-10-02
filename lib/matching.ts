@@ -179,6 +179,22 @@ function beneficiarioEncaja(benefArr: string[] | null | undefined, tipo: string)
   return false
 }
 
+/**
+ * ¿Puede pedirla una empresa, una pyme, un autónomo o una cooperativa? Es lo que
+ * tramitan las gestorías colaboradoras: unas becas de máster para personas sin
+ * actividad económica no les sirven de nada, y ofrecer ahí "¿te la tramitamos?"
+ * solo les mandaría peticiones que no pueden atender.
+ *
+ * Mismo criterio que el cruce con los perfiles (`beneficiarioEncaja`). Sin dato
+ * de beneficiarios —pasa en muchas privadas y europeas— se da por bueno: mejor
+ * una petición de más que esconder el formulario en una ayuda para pymes.
+ */
+export function esParaEmpresas(beneficiarios: string[] | null | undefined): boolean {
+  const lista = (beneficiarios || []).filter(Boolean)
+  if (lista.length === 0) return true
+  return ['pyme', 'autonomo', 'gran_empresa', 'cooperativa'].some((tipo) => beneficiarioEncaja(lista, tipo))
+}
+
 // "Concesión directa" (canónica/instrumental/por convenio/por ley...) es un
 // pago ya adjudicado por nombre a una entidad concreta (un ayuntamiento y "su"
 // asociación vecinal, "su" club deportivo...) — no es una convocatoria abierta
@@ -460,7 +476,7 @@ const TRAILING_BOILERPLATE = [
 // que se aprueba la convocatoria para la concesión de subvenciones destinadas a
 // X, en la Comunidad de Y, para el año Z") y se queda con el núcleo: "Subvenciones
 // destinadas a X" — sin inventar nada, solo recortando boilerplate conocido.
-export function tituloCorto(t: string | null | undefined): string {
+export function tituloCorto(t: string | null | undefined, max = 120): string {
   let s = (t || '').replace(/\s+/g, ' ').trim()
   const m = s.match(/(subvenci\w*|ayudas?\b|becas?\b|premios?\b|l[ií]neas? de ayuda|bono\w*)[\s\S]*/i)
   if (m) s = m[0].trim()
@@ -477,7 +493,7 @@ export function tituloCorto(t: string | null | undefined): string {
 
   s = s.replace(/[\s,;.:]+$/, '')
   if (s) s = s.charAt(0).toUpperCase() + s.slice(1)
-  if (s.length > 120) s = s.slice(0, 117).replace(/\s+\S*$/, '') + '…'
+  if (s.length > max) s = s.slice(0, max - 3).replace(/\s+\S*$/, '') + '…'
   return s || (t || '')
 }
 
