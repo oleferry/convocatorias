@@ -13,8 +13,9 @@ const DESCRIPTION = 'La IA que rastrea ayudas, subvenciones y convocatorias ante
 // Solo lleva lo que el propio sitio ya dice de sí mismo: el nombre, la URL, el
 // logo que sirve como icono y la descripción de los metadatos. Nada de
 // `aggregateRating`, número de usuarios ni cifras: no hay reseñas que marcar.
-// La razón social, el NIF y el correo salen de lib/legal.ts, lo mismo que
-// declara /aviso-legal, y solo cuando están rellenos.
+// El correo sale de lib/legal.ts. La razón social y el NIF solo si la titular
+// fuera una sociedad: hoy es una persona física, y su NIF va donde la ley lo
+// exige (el aviso legal), no repartido por los datos estructurados.
 //
 // Los `@id` enlazan WebSite con su Organization sin repetirla; las migas y los
 // listados de /ayudas van en sus propias páginas, no aquí.
@@ -28,8 +29,9 @@ const SITE_JSON_LD = {
       name: SITE_NAME,
       url: APP_URL,
       logo: `${APP_URL}/logo.png`,
-      ...(titularCompleto()
-        ? { legalName: TITULAR.razonSocial, taxID: TITULAR.nif, email: EMAIL_CONTACTO }
+      email: EMAIL_CONTACTO,
+      ...(titularCompleto() && !TITULAR.personaFisica
+        ? { legalName: TITULAR.razonSocial, taxID: TITULAR.nif }
         : {}),
     },
     {

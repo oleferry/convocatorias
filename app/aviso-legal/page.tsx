@@ -12,13 +12,14 @@ export const metadata: Metadata = {
 export default function AvisoLegal() {
   return (
     <LegalPage titulo="Aviso legal">
-      <H2>Quién es el titular</H2>
+      <H2>Quién está detrás</H2>
       <P>
         En cumplimiento del artículo 10 de la Ley 34/2002, de servicios de la sociedad de la
-        información y de comercio electrónico, el titular de dameperrasperro.es es:
+        información y de comercio electrónico, estos son los datos de quien está detrás de
+        dameperrasperro.es:
       </P>
       <UL>
-        <li>Razón social: <strong>{dato(TITULAR.razonSocial)}</strong></li>
+        <li>{TITULAR.personaFisica ? 'Titular' : 'Razón social'}: <strong>{dato(TITULAR.razonSocial)}</strong></li>
         <li>NIF: <strong>{dato(TITULAR.nif)}</strong></li>
         <li>Domicilio: {dato(TITULAR.domicilio)}</li>
         {TITULAR.registro.trim() && <li>Datos registrales: {TITULAR.registro}</li>}
