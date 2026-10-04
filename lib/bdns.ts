@@ -101,9 +101,18 @@ async function bdnsGet(path: string, params: Record<string, string | number | un
     if (v !== undefined && v !== '') qs.set(k, String(v))
   }
   const url = `${BDNS_BASE}${path}?${qs.toString()}`
-  const res = await fetch(url, { headers: { Accept: 'application/json' } })
-  if (!res.ok) throw new Error(`BDNS ${path} → ${res.status}`)
-  return res.json()
+  // La BDNS corta con 429 si se le pide deprisa: medido el 04-10-2026, 22 de
+  // 120 detalles pedidos con 20 ms de pausa. Sin reintento esas convocatorias
+  // se saltaban en silencio y no volvían a mirarse. Se reintenta con espera
+  // creciente (1, 2 y 4 s) respetando Retry-After si lo manda.
+  for (let intento = 0; ; intento++) {
+    const res = await fetch(url, { headers: { Accept: 'application/json' } })
+    if (res.ok) return res.json()
+    if (res.status !== 429 || intento >= 3) throw new Error(`BDNS ${path} → ${res.status}`)
+    const retryAfter = Number(res.headers.get('retry-after'))
+    const espera = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 10) * 1000 : 1000 * 2 ** intento
+    await new Promise(r => setTimeout(r, espera))
+  }
 }
 
 export interface SearchOptions {

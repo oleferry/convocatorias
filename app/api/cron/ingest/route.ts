@@ -25,14 +25,16 @@ export async function GET(req: NextRequest) {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: 'Falta SUPABASE_SERVICE_ROLE_KEY en el entorno' }, { status: 500 })
   }
+  const inicio = Date.now()
   try {
     const sb = createAdminSupabase()
-    // 300 detalles por pasada: la BDNS publica ~124 convocatorias diarias en
-    // toda España, así que con 120 nos quedábamos cortos cada día y el atraso
-    // no se recuperaba nunca. Cada detalle tarda ~0,3 s → ~90 s, que caben de
-    // sobra en los 300 s de la función ahora que los resúmenes salieron fuera.
-    const max = Number(req.nextUrl.searchParams.get('max') || 300)
-    const result = await syncBdns(sb, { maxDetails: max })
+    // La BDNS publica ya 250-320 convocatorias al día en toda España (medido en
+    // septiembre-octubre de 2026). El tope por número se queda alto y lo que
+    // manda es el tiempo: 200 s para pedir detalles, uno a uno (en paralelo la
+    // BDNS devuelve 429). Al llegar al tope se guarda lo hecho y el puntero
+    // avanza; ver el «avance garantizado» de syncBdns.
+    const max = Number(req.nextUrl.searchParams.get('max') || 1500)
+    const result = await syncBdns(sb, { maxDetails: max, hastaMs: inicio + 200_000 })
     // De paso, refrescamos el radar (privados + europeos) — barato e idempotente
     let radar: any = null
     try { radar = await syncRadar(sb) } catch (e: any) { console.warn('[cron/ingest] radar:', e?.message) }
@@ -42,7 +44,8 @@ export async function GET(req: NextRequest) {
     let resumenes: any = null
     if (process.env.ANTHROPIC_API_KEY) {
       const maxRes = Number(req.nextUrl.searchParams.get('maxResumenes') || 40)
-      try { resumenes = await syncResumenCatalogo(sb, { max: maxRes }) } catch (e: any) { console.warn('[cron/ingest] resumenes:', e?.message) }
+      // Con lo que quede hasta los 270 s; el resto del límite, para responder.
+      try { resumenes = await syncResumenCatalogo(sb, { max: maxRes, hastaMs: inicio + 270_000 }) } catch (e: any) { console.warn('[cron/ingest] resumenes:', e?.message) }
     }
     // Descubrimiento IA de privados: UNA VEZ AL MES (día 1). Era semanal, pero
     // se llevaba el 73% de todo el gasto de la API — con diferencia la función

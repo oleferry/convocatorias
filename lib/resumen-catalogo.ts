@@ -16,7 +16,7 @@ export interface ResumenResult {
   fallos: { codigo_bdns: string; error: string }[]; total_fallos: number
 }
 
-export async function syncResumenCatalogo(sb: any, opts: { max?: number } = {}): Promise<ResumenResult> {
+export async function syncResumenCatalogo(sb: any, opts: { max?: number; hastaMs?: number } = {}): Promise<ResumenResult> {
   const max = opts.max ?? 40
   const today = new Date().toISOString().slice(0, 10)
 
@@ -31,6 +31,10 @@ export async function syncResumenCatalogo(sb: any, opts: { max?: number } = {}):
   let done = 0
   const fallos: { codigo_bdns: string; error: string }[] = []
   for (const row of (pending || [])) {
+    // Tope de tiempo: los resúmenes van después de la ingesta en la misma
+    // función de 300 s, y si se la comen, la función muere y la ingesta no
+    // llega a guardar por dónde iba. Lo que no quepa hoy, mañana.
+    if (opts.hastaMs && Date.now() > opts.hastaMs) break
     try {
       const { resumen, importeBeneficiario } = await generateResumenCatalogo(row)
       if (!resumen) { fallos.push({ codigo_bdns: row.codigo_bdns, error: 'sin resumen (IA no devolvió texto)' }); continue }

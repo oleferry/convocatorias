@@ -9,7 +9,7 @@
       "schedule": "0 7 * * 1"
     },
     {
-      "path": "/api/cron/bdns-backfill?repaso=1",
+      "path": "/api/cron/bdns-repaso",
       "schedule": "30 4 * * *"
     }
   ]
