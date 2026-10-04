@@ -96,8 +96,24 @@ export async function syncBdns(
   // En backfill NO se toca: su ventana la marca quien lo llama, y mover el
   // puntero hacia atrás haría que la ingesta diaria reprocesara meses.
   if (!opts.backfill) {
-    const capped = limit < candidates.length && rows.length > 0
-    const last = capped ? (rows[rows.length - 1].fecha_recepcion || ymd(today)) : ymd(today)
+    // Cortado = quedaron candidatas sin mirar, por número o por tiempo. Antes
+    // exigía además haber leído alguna fila: si no se leía ninguna, daba la
+    // ingesta por terminada y saltaba hasta hoy, perdiendo todo lo pendiente.
+    const capped = limit < candidates.length
+    let last = !capped ? ymd(today) : (rows[rows.length - 1]?.fecha_recepcion || ymd(since))
+    // Avance garantizado. Si la pasada no llega a terminar ni el día por el que
+    // iba, el puntero volvía a ese mismo día y la siguiente empezaba otra vez
+    // por sus primeras convocatorias: no salía nunca de él. Pasó desde mediados
+    // de septiembre de 2026, con días de más de 300 convocatorias (el 30 de
+    // septiembre, 317) y un tope de 300 por pasada: el catálogo dejó de recibir
+    // nada nuevo. Ahora, si no se ha pasado del primer día, se salta al
+    // siguiente; lo que quede de ese día lo recoge el repaso de bdns-backfill.
+    if (capped && last <= ymd(since)) {
+      const siguiente = new Date(since)
+      siguiente.setUTCDate(siguiente.getUTCDate() + 1)
+      console.warn('[bdns-sync] el día', ymd(since), 'no cabe en una pasada; se sigue por', ymd(siguiente))
+      last = ymd(siguiente)
+    }
     await sb.from('bdns_sync_state').update({
       last_fecha_recepcion: last, last_run_at: new Date().toISOString(), last_count: rows.length,
     }).eq('id', 1)
@@ -111,4 +127,31 @@ export async function syncBdns(
     siguienteOffset: limit < candidates.length ? limit : null,
     from: ymd(since), to: ymd(today),
   }
+}
+
+// Repaso automático. La ingesta diaria solo mira hacia delante, así que lo que
+// se descartó al ingerirlo no vuelve a mirarse nunca. Pasó con todas las
+// convocatorias sin fecha de fin en la BDNS (el plazo iba solo en texto: ver
+// `fechaFinDeTexto` en lib/bdns.ts), que se tiraron durante meses.
+//
+// El cron llama cada día a /api/cron/bdns-repaso, que revisa POR_PASADA días de
+// publicaciones de los últimos REPASO_DIAS, avanzando un tramo cada día: en
+// REPASO_DIAS / POR_PASADA días (90) ha recorrido la ventana entera y vuelve a
+// empezar. Dos días son unas 550 convocatorias, y el detalle se pide de una en
+// una (la BDNS corta con 429 si se hace en paralelo) desde una función que
+// corre en EE. UU.: por eso además lleva tope de tiempo.
+export const REPASO_DIAS = 180
+export const POR_PASADA = 2
+
+export function ventanaDeRepaso(hoy: Date): { desde: Date; hasta: Date } {
+  const dia = Math.floor(hoy.getTime() / 86_400_000)
+  const tramo = dia % (REPASO_DIAS / POR_PASADA)
+  const hasta = new Date(hoy)
+  // Retrocede POR_PASADA + 1 por tramo y no POR_PASADA: mientras el repaso va
+  // hacia atrás, «hoy» avanza un día. Con POR_PASADA a secas cada vuelta solo
+  // cubría la mitad de la ventana (comprobado simulando 90 días seguidos).
+  hasta.setUTCDate(hasta.getUTCDate() - 1 - tramo * (POR_PASADA + 1))
+  const desde = new Date(hasta)
+  desde.setUTCDate(desde.getUTCDate() - (POR_PASADA - 1))
+  return { desde, hasta }
 }
