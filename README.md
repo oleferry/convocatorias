@@ -5,6 +5,10 @@ ayudas y convocatorias (BDNS, fondos UE, premios privados) y las cruza con el pe
 cada empresa/autónomo. Multi-perfil por usuario, memoria/resumen generados con IA,
 leads a gestorías, y un panel de coste real de la API de Claude.
 
+> 📖 **[CONTEXTO.md](CONTEXTO.md)** — contexto completo para retomar el proyecto: estado
+> real con cifras, por qué está construido así, el motor de matching explicado, las
+> trampas ya pisadas y qué sigue. **Léelo antes de tocar matching, ingesta o costes.**
+
 ## Estructura
 ```
 convocatorias/
