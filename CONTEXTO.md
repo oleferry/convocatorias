@@ -302,11 +302,30 @@ select last_fecha_recepcion, last_run_at, last_count from bdns_sync_state where 
 | `/api/cron/bdns-repaso` | 04:30 diario |
 | `/api/cron/digest` | 07:00 los lunes |
 
-> ⚠️ **Pendiente de verificar:** el plan Hobby de Vercel permite **2** crons y aquí hay
-> **3**. Hay que confirmar en el panel de Vercel que los tres están creados y
-> ejecutándose; si uno se queda fuera en silencio, el repaso diario no corre y nadie se
-> enterará. Hobby además guarda los registros solo una hora, así que hay que mirarlo
-> pronto por la mañana o dejar rastro en base de datos.
+**Los tres corren. Verificado el 05-10-2026.** Se dudó de esto porque el plan Hobby
+documenta un límite de 2 crons; el dato dice que los tres están activos.
+
+Los registros de Vercel no sirven para comprobarlo: en Hobby duran una hora. La forma de
+verificarlo es la huella en base de datos, porque cada cron escribe a una hora distinta:
+
+```sql
+-- Filas nuevas por hora. Las de las ~04h solo pueden venir de bdns-repaso;
+-- las de las ~06h, de ingest.
+select created_at::date dia, extract(hour from created_at)::int hora, count(*) n
+from convocatorias_publicas
+where created_at >= current_date - 7
+group by 1, 2 order by 1 desc, 2;
+```
+
+El 05-10 salieron 39 filas a las 04:49 y 109 a las 06h; el 03-10, 41 a las 04:40 y 6 a
+las 06h. Dos crons distintos la misma noche.
+
+> **Matiz, para no leer mal esta consulta:** una noche sin filas a las 04h **no** prueba
+> que el repaso no corriera. Recupera lo que la ingesta dejó atrás, y hay noches en que
+> legítimamente no encuentra nada: entonces no crea filas y no deja huella. La consulta
+> demuestra que corre, no que corra todos los días. Si algún día hace falta esa certeza,
+> hay que hacer que el repaso escriba su propia ejecución en una tabla aunque guarde cero
+> — hoy no lo hace.
 
 ### El reparto de tiempo dentro de `ingest`
 
@@ -569,9 +588,16 @@ Ordenado por lo que de verdad mueve la aguja, no por lo que es más entretenido 
 
 ### 3. Verificaciones abiertas
 
-- **Los 3 crons en plan Hobby** (sección 7).
 - Los **304 resúmenes pendientes** se van solos a 40 por noche, unos 8 días. Si se atascan,
   mirar si el tope de mantenimiento está cortando.
+- Que el repaso diario corra **todas** las noches y no solo algunas (sección 7): hoy solo
+  se puede demostrar que corre, no la regularidad. Requiere que deje registro propio.
+
+**Nota sobre `codigo_bdns`:** los códigos no numéricos son normales, no un error. Las
+fuentes que no son la BDNS usan prefijo: `priv-`, `eu-`, `radar-`. Si ves en los registros
+una ruta como `/ayuda/www.denia.es` devolviendo 404, es un rastreador pidiendo una URL
+inventada, no una fila corrupta — se comprobó el 05-10-2026 y en la tabla solo hay códigos
+numéricos y esos tres prefijos.
 
 ### 4. Producto, cuando haya usuarios que lo justifiquen
 
